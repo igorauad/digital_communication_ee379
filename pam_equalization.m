@@ -1,3 +1,19 @@
+% PAM Equalization
+%
+%   Author: Igor Freire
+%
+%   Based on the material for Stanford EE 379A - Digital Communication:
+%   Signal Processing, by John M. Cioffi
+%
+% The models used in this script are mostly based on Figure 3.7 and the
+% conventions of Table 3.1 are used throughout.
+%
+% Tips to understand conversion factors of T (Table 3.1):
+%   - If a function has unitary energy in continuous time, then its
+%   discrete-time equivalent has norm^2 of 1/Ts (inverse of the sampling
+%   period.
+%
+
 clearvars, close all;
 clc
 
@@ -46,8 +62,8 @@ Scale  = sqrt(Ex) * modnorm(pammod(0:(M-1), M),'avpow',1);
 % Noise
 
 noise_en_per_dim = L * N0_over_2;
-% Remember that in the presence of oversampling, the receiver analog filter 
-% is assumed to be a "brick-wall" filter of bandwidth "l" times larger than 
+% Remember that in the presence of oversampling, the receiver analog filter
+% is assumed to be a "brick-wall" filter of bandwidth "l" times larger than
 % the nominal bandwidth, but with the same conventional magnitude sqrt(T).
 % Thus, the analog filter energy becomes l, rather than unitary. Then, the
 % noise energy per dimension becomes (N0/2) * l.
@@ -98,7 +114,7 @@ p = conv(h, htx);
 
 % Combined response with the gain of the anti-alias receive filter
 p_tilde = sqrt(Tsym) * p;
-% It is the convolution between the pulse response and the anti-alias 
+% It is the convolution between the pulse response and the anti-alias
 % filter.
 
 % Pulse norm:
@@ -232,11 +248,11 @@ switch (equalizer)
         R_YY = (Ex_bar * (P * P')) + (noise_en_per_dim * eye(Nf*L));
         % MMSE-LE FIR Equalizer:
         w = (R_YY\R_Yx)';
-        % Alternatively, the FIR Equalizer can be obtained using the 
+        % Alternatively, the FIR Equalizer can be obtained using the
         % DFE program:
         [SNR_mmse,w_t,opt_delay]=dfsecolorsnr(L,p_tilde,Nf,0,delta,...
             Ex,noise_en_per_dim*[1; zeros(Nf*L-1,1)])
-        
+
         % Same as (inv(R_YY)*R_Yx)';
         z = conv(w, rx_waveform);
 
