@@ -56,7 +56,37 @@ Ex     = Px * Tsym; % Average energy of a constellation
 Ex_bar = Ex / N;    % Energy per dimension
 
 % Scale factor for the PAM constellation to present average energy of "Ex":
-Scale  = sqrt(Ex) * modnorm(pammod(0:(M-1), M),'avpow',1);
+Scale = modnorm(pammod(0:(M-1), M), 'avpow', Px);
+% Why Px, instead of Ex? Because the energy within symbol-spaced samples of
+% the transmit signal is actually Tsym * E{ |x_k|^2 }, due to the fact that
+% the sincs in the sampling theorem sinc-interpolation formula are not
+% orthonormal, but only orthogonal. The former implies the samples must be
+% scaled by sqrt(Tsym), so a factor of Tsym appears multiplying the norm.
+% Since
+%
+%   Tsym * E{ |x_k|^2 } = Ex                                        (1)
+%
+% it follows that:
+%
+%   E{ |x_k|^2 } = Ex/Tsym = Px                                     (2)
+%
+% Q.E.D
+%
+%  Furthermore, when the symbols are upsampled by L (zero-interpolated),
+%  the resulting sequence has average energy L times lower and sampling
+%  interval also L times lower, so the following equality holds:
+%
+%   Ex = L^2 * Ts * E{ |x_up_k|^2 },                                (3)
+%
+%  where "Ts = Tsym/L" and "x_up_k" is the upsampled sequence
+%
+%  Since Px = Ex/Tsym = Ex/(Ts * L), then it follows that:
+%
+%   E{ |x_up_k|^2 } = Px / L                                        (4)
+%
+%  Expression (4) can be used for sanity checks, but really the most
+%  important is (2), since it must be used for apropriately scaling the
+%  modulated symbols (scaling factor for pammod).
 
 % Noise energy per dimensions
 %
@@ -160,17 +190,21 @@ signals_up(1:L:end) = tx_signals;
 tx_waveform = Ts * conv(htx, signals_up(:));
 
 if (debug)
-   % Due to the invariance of the inner product, the total transmit energy
-   % (given the basis are orthonormal) should be:
-   tx_total_energy = norm(tx_signals).^2
-   % Nevertheless, the basis are orthonormal only in continuous time. As
-   % far as simulation is concerned, the basis has norm^2 of (1/Ts), and
-   % due to the factor of Ts in the convolution of Table 3.1, a compound
-   % factor of Ts^2 * (1/Ts) = Ts will scale the Tx energy computation.
-   % Thus, the resulting energy could also be computed as:
-   tx_total_energy_2 = (1/Ts) * norm(tx_waveform).^2
-   % Verify whether power is indeed Px
-   tx_power = tx_total_energy / (Ts * length(tx_waveform))
+   % To understand the following, consult page 26, chap 9 of Gallager's
+   % book on Digital Comm I.
+   fprintf('\n--- Energy/Power Measurements ---\n');
+   % Due to the invariance of the inner product, the average transmit
+   % energy (given the basis are orthonormal) should be close to Ex:
+   tx_avg_energy = Tsym * mean(abs(tx_signals).^2);
+   fprintf('Measured average Tx energy:\t %g\n', tx_avg_energy);
+   fprintf('Spec average Tx energy (Ex):\t %g\n', Ex);
+
+   % The transmit power is equivalent to the mean in the transmit signal
+   % sequence.
+   tx_power = L * mean(abs(signals_up).^2);
+   fprintf('Measured Tx power:\t %g\n', tx_power);
+   fprintf('Spec Tx power (Px):\t %g\n', Px);
+
 end
 
 %% Transmission through channel
