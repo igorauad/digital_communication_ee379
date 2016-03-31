@@ -23,7 +23,7 @@ nBits       =   4e5;    % Number of transmit symbols
 debug       =   0;      % Enable plots and extra information
 rollOff     =   0.1;    % Roll-off factor
 L           =   4;      % Oversampling (support only for integer values)
-Fs          =   2e3;
+W           =   5e3;    % Nominal bandwith (Hz)
 N_T         =   10;     % Raised-cosine group-delay in symbols
 Px          =   1e-3;   % Transmit Power (W)
 N0_over_2   =   1e-13;  % Noise PSD (W/Hz/dim) and variance per dimension
@@ -37,11 +37,12 @@ Nf = 10;
 
 % Derived computations:
 b        = log2(M);         % Bits per symbol
-Ts       = 1 / Fs;          % Sampling period
-Rsym     = Fs / L;          % Symbol Rate
+Rsym     = 2 * W;           % Symbol rate (real degrees of freedom per sec)
 Tsym     = 1 / Rsym;        % Symbol Period
+Fs       = Rsym * L;        % Symbol Rate
+Ts       = 1 / Fs;          % Sampling period
 nSymbols = ceil(nBits / b); % Number of Tx symbols
-W        = Rsym/2;          % Nominal bandwith (half the symbol rate)
+
 
 fprintf('Baud rate:\t%g symbols/s\n', Rsym);
 fprintf('Data rate:\t%g kb/s\n', Rsym * b / 1e3);
