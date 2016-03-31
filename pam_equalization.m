@@ -125,9 +125,10 @@ if (L > 1)
 else
     % Without oversampling, pulse shaping (other than the T-spaced sinc)
     % can not be applied.
-    htx = 1/sqrt(Ts);
+    htx = 1/sqrt(Tsym);
     % Note: this is the same as sampling (1/sqrt(T))*sinct(t/T) at t=kT.
     % All samples, except the one for k=0, are zero.
+    % Note "Ts * sum(abs(htx).^2)" is unitary
 end
 
 % Filter response
