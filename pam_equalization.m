@@ -73,21 +73,7 @@ Scale = modnorm(pammod(0:(M-1), M), 'avpow', Px);
 %
 % Q.E.D
 %
-%  Furthermore, when the symbols are upsampled by L (zero-interpolated),
-%  the resulting sequence has average energy L times lower and sampling
-%  interval also L times lower, so the following equality holds:
-%
-%   Ex = L^2 * Ts * E{ |x_up_k|^2 },                                (3)
-%
-%  where "Ts = Tsym/L" and "x_up_k" is the upsampled sequence
-%
-%  Since Px = Ex/Tsym = Ex/(Ts * L), then it follows that:
-%
-%   E{ |x_up_k|^2 } = Px / L                                        (4)
-%
-%  Expression (4) can be used for sanity checks, but really the most
-%  important is (2), since it must be used for apropriately scaling the
-%  modulated symbols (scaling factor for pammod).
+
 
 % Noise energy per dimensions
 %
