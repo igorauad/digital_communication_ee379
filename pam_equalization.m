@@ -30,10 +30,11 @@ N0_over_2   =   1e-13;  % Noise PSD (W/Hz/dim) and variance per dimension
 M           =   16;
 ideal_chan  =   0;
 en_noise    =   1;
-equalizer   =   2;      % 0) no equalizer; 1) FIR ZF-LE; 2) FIR MMSE-LE
-% FIR ZF-LE
-% FIR MMSE-LE
+equalizer   =   2;      % 0) no equalizer; 1) FIR MMSE-DFE; 2) FIR MMSE-LE
+% MMSE Parameters (if used)
 Nf = 10;
+% MMSE-DFE:
+Nb = 2;
 
 % Derived computations:
 b        = log2(M);         % Bits per symbol
@@ -251,14 +252,11 @@ if (debug)
    pwelch(noise,[],[],[],Fs,'twosided');
 end
 
-%% Equalization
+%% Equalizer Design
 
+% Define equalizers and receive filters
 switch (equalizer)
-    case 1
-        error('FIR ZF is not implemented yet');
-
-    case 2
-        fprintf('\n------- FIR MMSE -------\n');
+    case {1,2}
         % First, MMSE is fractionally spaced and incorporates both
         % matched filtering and equalization.
         % Secondly, it is preceded by an anti-alias filter whose gain is
@@ -275,48 +273,68 @@ switch (equalizer)
         % Combined pulse response + anti-aliasing filter:
         p_tilde = Ts * conv(p, hrx);
 
-        % Anti-aliasing receive filtering:
-        rx_waveform = Ts * conv(rx_waveform, hrx);
+        %
+        % FIR design
+        %
+        nu = ceil((length(p_tilde)-1)/L);  % Pulse response dispersion
+        delta = round((Nf + nu)/2);        % Equalized system delay
 
-        % First split p into blocks (columns) of L samples each. This is
-        % the effect of a clockwise commutator in the L-branch
-        % decomposition.
-
-        % Number of blocks:
-        n_blocks = 1 + ceil((length(p_tilde)-1)/L);
-        % Last block may require zero-padding
-        if (mod(length(p_tilde)-1, L) ~= 0)
-            n_missing_samples = L - mod(length(p_tilde)-1, L);
+        if (equalizer == 2)
+            fprintf('\n------- FIR MMSE-LE -------\n');
+            Nb = 0;
         else
-            n_missing_samples = 0;
+            fprintf('\n------- FIR MMSE-DFE -------\n');
         end
 
-        % Zero-pad and split:
-        p_0 = [p_tilde(1); zeros(L-1,1)];
-        p_split = [p_0 flipud(reshape([p_tilde(2:end) ...
-            zeros(1,n_missing_samples)], L, n_blocks-1))];
-        % Note: flipud is used to distribute the p_tilde samples as a CW
-        % commutator over the L branches
+        % The FIR Equalizer can be obtained using the DFE program:
+        fprintf('\n-- EE379A DFE Implementation --\n');
+        [SNR_mmse_unbiased_db,w_t,opt_delay]=dfsecolorsnr(...
+            L,...
+            p_tilde,...
+            Nf,...
+            Nb,...
+            delta,...
+            Ex,...
+            noise_en_per_dim*[1; zeros(Nf*L-1,1)]);
+        % Note: the last argument is the noise autocorrelation vector
+        % (one-sided).
+        w = w_t(1:(Nf*L));
+        b = -w_t((Nf*L) + 1:(Nf*L) + Nb);
 
-        nu = size(p_split,2) - 1;   % Pulse response dispersion
-        delta = round((Nf + nu)/2); % Equalized system delay
+        % Expected Performance
+        SNR_fir_mmse_le_unbiased = 10^(SNR_mmse_unbiased_db/10);
+        SNR_fir_mmse_le_biased   = SNR_fir_mmse_le_unbiased + 1;
+        fprintf('Biased MMSE SNR:\t %g dB\n',...
+            10*log10(SNR_fir_mmse_le_biased));
+        fprintf('Unbiased MMSE SNR:\t %g dB\n',...
+            10*log10(SNR_fir_mmse_le_unbiased));
+        % NNUB based on the SNR_fir_mmse_le_unbiased
+        Pe = 2 * (1 - 1/M) * ...
+            qfunc(sqrt(3*SNR_fir_mmse_le_unbiased / (M^2 - 1)));
+        fprintf('Pe (NNUB):      \t %g\n', Pe);
+        gamma_mmse_le = 10*log10(SNRmfb / SNR_fir_mmse_le_unbiased);
+        fprintf('MMSE gap to SNRmfb:\t %g dB\n', gamma_mmse_le);
 
-        nRows = Nf * L;
-        nCol = Nf + nu;
-        % Preallocate
-        P = zeros(nRows, nCol);
+        % Factor to remove bias:
+        bias_factor = SNR_fir_mmse_le_biased / SNR_fir_mmse_le_unbiased;
 
-        nZerosRight = nCol - (nu + 1);
-        nZerosLeft = 0;
+    otherwise
+        % Matched filter receiver
+        hrx  = conj(fliplr(htx));
+        % Note "Ts * conv(htx, hrx)" should be delta_k (for t = kTsym)
+end
 
-        nBlocks = Nf;
+%% Equalize the received samples
 
-        for iBlock = 1:nBlocks
-            P((iBlock-1)*L + 1 : (iBlock*L),:) = ...
-                [zeros(L, nZerosLeft) p_split zeros(L, nZerosRight)];
-            nZerosLeft = nZerosLeft + 1;
-            nZerosRight = nZerosRight - 1;
-        end
+% Anti-aliasing receive filtering:
+rx_waveform = Ts * conv(rx_waveform, hrx);
+
+switch (equalizer)
+    case 1 % MMSE-DFE
+        % Feed-forward section
+        z = conv(w, rx_waveform);
+        % Note: the Ts factor is not necessary here, since there is not
+        % turning back to analog domain again past this point
 
         R_Yx = Ex_bar * P * [zeros(delta,1); 1; zeros(Nf + nu - delta - 1, 1)];
         R_YY = (Ex_bar * (P * P')) + (noise_en_per_dim * eye(Nf*L));
@@ -337,7 +355,9 @@ switch (equalizer)
             fprintf('Unbiased MMSE SNR:\t %g dB\n',SNR_mmse);
         end
 
-        % Same as (inv(R_YY)*R_Yx)';
+
+    case 2 % MMSE-LE
+        % Feed-forward section
         z = conv(w, rx_waveform);
         % Note: the Ts factor is not necessary here, since there is not
         % turning back to analog domain again past this point
@@ -349,33 +369,18 @@ switch (equalizer)
         % Down-sample
         z_k = z(1:L:nSymbols*L).';
         % Normalize:
-        z_k = z_k / (sqrt(L) * norm(w));
-        % Note: w filter is fractionally spaced, so its "downsampled"
-        % version will present a norm scaled by sqrt(L).
-
-        % Performance
-        error_power = Ex_bar - w * R_Yx;
-        SNR_fir_mmse_le_biased = Ex_bar / error_power;
-        fprintf('Biased MMSE SNR:\t %g dB\n',...
-            10*log10(SNR_fir_mmse_le_biased));
-        SNR_fir_mmse_le_unbiased = SNR_fir_mmse_le_biased - 1;
-        fprintf('Unbiased MMSE SNR:\t %g dB\n',...
-            10*log10(SNR_fir_mmse_le_unbiased));
-        % NNUB based on the SNR_fir_mmse_le_unbiased
-        Pe = 2 * (1 - 1/M) * qfunc(sqrt(3*SNR_fir_mmse_le_unbiased / (M^2 - 1)));
-        fprintf('Pe (NNUB):      \t %g\n', Pe);
-        gamma_mmse_le = 10*log10(SNRmfb / SNR_fir_mmse_le_unbiased);
-        fprintf('MMSE gap to SNRmfb:\t %g dB\n', gamma_mmse_le);
+        z_k = z_k * (1 / norm(w));
+        % TODO: bias should be removed by scaling the decision-element
+        % input by the ratio between SNR_fir_mmse_le_biased and
+        % SNR_fir_mmse_le_unbiased:
+        %
+        % z_k = z_k * bias_factor;
 
     otherwise
-        % Matched filter receiver
-        hrx  = conj(fliplr(htx));
+        % Cursor for Symbol timing synchronization
         [~, n0] = max(conv(p, hrx));
-        % Matched filtering
-        y = Ts * conv(rx_waveform, hrx);
-        % Symbol timing synchronization
         % Acquire a window with nSymbols * L samples
-        y_s = y(n0:n0 + nSymbols*L - 1);
+        y_s = rx_waveform(n0:n0 + nSymbols*L - 1);
         % Followed by downsampling (when L > 1)
         % T-spaced received symbols:
         y_k = y_s(1:L:end);
