@@ -186,13 +186,18 @@ if (debug)
    tx_avg_energy = Tsym * mean(abs(tx_signals).^2);
    fprintf('Measured average Tx energy:\t %g\n', tx_avg_energy);
    fprintf('Spec average Tx energy (Ex):\t %g\n', Ex);
-
+   % Upsampled sequence average energy
+   tx_avg_energy_sampled = Ts * mean(abs(signals_up).^2);
+   fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
+   fprintf('Observe Es = Ex/L\n');
+   fprintf('--\n');
    % The transmit power is equivalent to the mean in the transmit signal
    % sequence.
-   tx_power = L * mean(abs(signals_up).^2);
-   fprintf('Measured Tx power:\t %g\n', tx_power);
-   fprintf('Spec Tx power (Px):\t %g\n', Px);
-
+   Ex_over_Tsym = tx_avg_energy / Tsym;
+   Es_over_Ts = tx_avg_energy_sampled / Ts;
+   fprintf('Ex/Tsym:\t %g\n', Ex_over_Tsym);
+   fprintf('Es/Ts:  \t %g\n', Es_over_Ts);
+   fprintf('Spec Px:\t %g\n', Px);
 end
 
 %% Transmission through channel
