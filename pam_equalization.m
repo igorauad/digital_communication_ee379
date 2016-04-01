@@ -342,12 +342,18 @@ switch (equalizer)
         fprintf('MMSE gap to SNRmfb:\t %g dB\n', gamma_mmse_le);
 
         % Factor to remove bias:
-        bias_factor = SNR_fir_mmse_le_biased / SNR_fir_mmse_le_unbiased;
+        unbiasing_factor = SNR_fir_mmse_le_biased / SNR_fir_mmse_le_unbiased;
 
     otherwise
         % Matched filter receiver
         hrx  = conj(fliplr(htx));
         % Note "Ts * conv(htx, hrx)" should be delta_k (for t = kTsym)
+
+        % For the matched filter receiver, the factor that removes the bias
+        % prior to the decision device is the reciprocal of ||p||. See,
+        % e.g., the solution for exercise 3.4, which considers the
+        % conventional matched filter receiver.
+        unbiasing_factor = (1/norm_p);
 end
 
 %% Equalize the received samples
@@ -394,13 +400,6 @@ switch (equalizer)
         z = z( (delta*L + 1) : (delta + nSymbols)*L );
         % Down-sample
         z_k = z(1:L:nSymbols*L).';
-        % Normalize:
-        z_k = z_k * (1 / norm(w));
-        % TODO: bias should be removed by scaling the decision-element
-        % input by the ratio between SNR_fir_mmse_le_biased and
-        % SNR_fir_mmse_le_unbiased:
-        %
-        % z_k = z_k * bias_factor;
 
     otherwise
         % Cursor for Symbol timing synchronization
@@ -410,12 +409,15 @@ switch (equalizer)
         % Followed by downsampling (when L > 1)
         % T-spaced received symbols:
         y_k = y_s(1:L:end);
-        % Equalized are equal to rx symbols (i.e. no equalization)
+        % There is no equalizer, so:
         z_k = y_k;
 end
 
-% Receiver Gain control (Assumed to be known)
-z_k_unscaled = z_k / (Scale * norm_p * Ts);
+% Remove bias:
+z_k = z_k * unbiasing_factor;
+
+% Scale back to "standard" pam constellation with d=2 for comparison:
+z_k_unscaled = z_k / (Scale * Ts);
 
 % if (debug)
     figure
