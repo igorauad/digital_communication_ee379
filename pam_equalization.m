@@ -178,9 +178,9 @@ Ne = 2 * (1 - 1/M);
 Pe = Ne * qfunc(sqrt(3*SNRmfb / (M^2 - 1)));
 fprintf('Pe (NNUB):\t %g\n', Pe);
 
-fprintf('\n----- ISI Characterization -----\n');
 % Also consider distortion
 if (~ideal_chan)
+   fprintf('\n----- ISI Characterization -----\n');
    % Maximum value for |x_k|
    x_abs_max = max(abs(pammod(0:(M-1), M)));
    % Mean-square distortion - Eq. (3.33)
