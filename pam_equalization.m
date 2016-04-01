@@ -189,9 +189,9 @@ if (~ideal_chan)
    % From (1.216):
    d_min = sqrt((12 * Ex) / (M^2 - 1));
    % Then, from (3.34):
-   Pe = Ne * qfunc((norm_p * d_min) / 2 * sqrt(N0_over_2 + d_min));
+   Pe = Ne * qfunc((norm_p * d_min) / (2 * sqrt(N0_over_2 + D_ms)));
    % Prints
-   fprintf('Mean-Square Distortion:\t %g db\n', 10*log10(d_min));
+   fprintf('Mean-Square Distortion:\t %g db/Hz\n', 10*log10(D_ms));
    fprintf('Pe (NNUB):             \t %g\n', Pe);
 end
 
