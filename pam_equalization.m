@@ -162,12 +162,38 @@ norm_p = sqrt(norm_p_sq);
 % Unitary-energy (in continuous-time) pulse response:
 phi_p = p / norm_p;
 
+% Combined transmit -> matched filter
+q = Ts * conv(phi_p, conj(fliplr(phi_p)));
+[q_max,i_q0] = max(q);
+if(q_max-1 > 1e-8)
+   warning('q(t) peak is not unitary.');
+end
+
 fprintf('\n--------- MFB ---------\n');
 SNRmfb = Ex_bar * norm_p_sq / noise_en_per_dim;
 fprintf('\nSNRmfb:   \t %g dB\n', 10*log10(SNRmfb))
+% Average number of nearest neighbors:
+Ne = 2 * (1 - 1/M);
 % NNUB based on the SNRmfb
-Pe = 2 * (1 - 1/M) * qfunc(sqrt(3*SNRmfb / (M^2 - 1)));
+Pe = Ne * qfunc(sqrt(3*SNRmfb / (M^2 - 1)));
 fprintf('Pe (NNUB):\t %g\n', Pe);
+
+fprintf('\n----- ISI Characterization -----\n');
+% Also consider distortion
+if (~ideal_chan)
+   % Maximum value for |x_k|
+   x_abs_max = max(abs(pammod(0:(M-1), M)));
+   % Mean-square distortion - Eq. (3.33)
+   D_ms = Ex * norm_p_sq * (sum(abs(q).^2) - 1);
+   % -1 in the summation removes the magnitude of q_0
+   % From (1.216):
+   d_min = sqrt((12 * Ex) / (M^2 - 1));
+   % Then, from (3.34):
+   Pe = Ne * qfunc((norm_p * d_min) / 2 * sqrt(N0_over_2 + d_min));
+   % Prints
+   fprintf('Mean-Square Distortion:\t %g db\n', 10*log10(d_min));
+   fprintf('Pe (NNUB):             \t %g\n', Pe);
+end
 
 
 %% Waveform generation - upsample and filter
