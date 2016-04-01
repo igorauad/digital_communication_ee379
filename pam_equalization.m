@@ -365,28 +365,6 @@ switch (equalizer)
     case 1 % MMSE-DFE
         % Feed-forward section
         z = conv(w, rx_waveform);
-        % Note: the Ts factor is not necessary here, since there is not
-        % turning back to analog domain again past this point
-
-        R_Yx = Ex_bar * P * [zeros(delta,1); 1; zeros(Nf + nu - delta - 1, 1)];
-        R_YY = (Ex_bar * (P * P')) + (noise_en_per_dim * eye(Nf*L));
-        % MMSE-LE FIR Equalizer:
-        w = (R_YY\R_Yx)';
-        % Alternatively, the FIR Equalizer can be obtained using the
-        % DFE program:
-        if (debug)
-            fprintf('\n-- EE379A DFE Implementation --\n');
-            [SNR_mmse,w_t,opt_delay]=dfsecolorsnr(L,p_tilde,Nf,0,delta,...
-                Ex,noise_en_per_dim*[1; zeros(Nf*L-1,1)]);
-            figure
-            plot(w, '--', 'linewidth', 1.2)
-            hold on
-            plot(w_t, 'r')
-            title('FIR MMSE-LE');
-            legend('Our', 'EE379A Program');
-            fprintf('Unbiased MMSE SNR:\t %g dB\n',SNR_mmse);
-        end
-
 
     case 2 % MMSE-LE
         % Feed-forward section
