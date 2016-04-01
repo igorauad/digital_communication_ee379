@@ -216,7 +216,7 @@ if (debug)
    % Upsampled sequence average energy
    tx_avg_energy_sampled = Ts * mean(abs(signals_up).^2);
    fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
-   fprintf('Observe Es = Ex/L\n');
+   fprintf('Observe Es = Ex/(L^2)\n');
    fprintf('--\n');
    % The transmit power is equivalent to the mean in the transmit signal
    % sequence.
@@ -254,7 +254,7 @@ if (debug)
     % Compare with Mathworks results
     AWGN = comm.AWGNChannel;
     AWGN.NoiseMethod = 'Signal to noise ratio (Es/No)';
-    AWGN.EsNo = 10*log10((Ex/(2*N0_over_2)));
+    AWGN.EsNo = 10*log10(( (Ex/(L^2)) /(2*N0_over_2)));
     AWGN.SignalPower = Px;
     AWGN.SamplesPerSymbol = L;
     noise_mtwks = AWGN.step(zeros(size(rx_pre_noise))); % AWGN channel
@@ -286,14 +286,19 @@ switch (equalizer)
         % First, MMSE is fractionally spaced and incorporates both
         % matched filtering and equalization.
         % Secondly, it is preceded by an anti-alias filter whose gain is
-        % sqrt(T) from -l/T to l/T (a support of 1/Ts). The filter in
-        % time-domain is given by:
+        % sqrt(Tsym) over the entire band from -L*pi/Tsym to L*pi/Tsym, 
+        % namely over -pi/Ts to pi/Ts. Since a regular unitar-energy filter
+        % over this band would present magnitude sqrt(Ts) in the freq.
+        % domain, in order for the filter to have magnitude sqrt(Tsym), it
+        % has to be scaled by a factor of "sqrt(Tsym/Ts)", which is the
+        % same as "sqrt(L)".
+        %   Therefore, the filter in time-domain is given by:
         %
-        %   (sqrt(Tsym)/Ts) * sinc(t/Ts) = (L/sqrt(Tsym)) * sinc(t/Ts)
+        %   sqrt(L) * [ (1/sqrt(Ts)) * sinc(t/Ts) ]
         %
         % When sampled at t = kTs, since sinc(t/Ts) is 1 for k=0 and 0
         % elsewhere, the discrete sequence is [ L/sqrt(Tsym) ]
-        hrx = L/sqrt(Tsym);
+        hrx = sqrt(L/Ts);
         % Note: Ts * norm(hrx).^2 = L (filter energy is L).
 
         % Combined pulse response + anti-aliasing filter:
