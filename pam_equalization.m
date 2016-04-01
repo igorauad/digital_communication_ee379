@@ -204,7 +204,11 @@ signals_up          = zeros(1,nSymbols*L);
 signals_up(1:L:end) = tx_signals;
 
 % Shaped waveform:
-tx_waveform = Ts * conv(htx, signals_up(:));
+tx_waveform = conv(htx, signals_up(:));
+% IMPORTANT: this is the only convolution that is not actually in the
+% sense of Table 3.1. Convolution here is just an artifact for producing
+% the orthogonal expansion that produces PAM modulated signal. Hence, the
+% factor of Ts is not required.
 
 if (debug)
    % To understand the following, consult page 26, chap 9 of Gallager's
@@ -407,7 +411,7 @@ end
 z_k = z_k * unbiasing_factor;
 
 % Scale back to "standard" pam constellation with d=2 for comparison:
-z_k_unscaled = z_k / (Scale * Ts);
+z_k_unscaled = z_k / Scale;
 
 % if (debug)
     figure
