@@ -254,13 +254,8 @@ end
 rx_pre_noise = Ts * conv(h, tx_waveform);
 
 % AWGN:
-noise = sqrt(N0_over_2) * randn(size(rx_pre_noise));
-% There is a related note pointed at the document below about the
-% factor of Ts that scales the noise variance.
-%
-% http://web.stanford.edu/group/cioffi/ee379a/extra/Hoi_problem3.34.zip
-%
-% Another related note can be found in Robert Gallager's material for the
+noise = sqrt(N0_over_2/Ts) * randn(size(rx_pre_noise));
+% An explanation can be found in Robert Gallager's material for the
 % Principles of Digital Communications I course, Chaper 9, footnote 25.
 % Rephrased slightly (for compatibility with the nomenclature in this
 % script), it can be understood as follows:
@@ -268,8 +263,8 @@ noise = sqrt(N0_over_2) * randn(size(rx_pre_noise));
 %   energy Ts, so the variance of each real and imaginary coefficient in
 %   the noise expansion must be scaled down by (Ts) from the noise energy
 %   N0/2 per degree of freedom to compensate the sinc scaling. In the end,
-%   iid variables with N0/2 variance are obtained. TO-DO: how to adapt the
-%   above?
+%   iid variables with N0/2 variance are obtained.
+
 if (debug)
     fprintf('\n--- Noise Power Measurements ---\n');
     % Compare with Mathworks results
