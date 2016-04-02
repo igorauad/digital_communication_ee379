@@ -202,85 +202,6 @@ if (~ideal_chan)
    fprintf('Pe (NNUB):             \t %g\n', Pe);
 end
 
-
-%% Waveform generation - upsample and filter
-
-signals_up          = zeros(1,nSymbols*L);
-signals_up(1:L:end) = tx_signals;
-
-% Shaped waveform:
-tx_waveform = conv(htx, signals_up(:));
-% IMPORTANT: this is the only convolution that is not actually in the
-% sense of Table 3.1. Convolution here is just an artifact for producing
-% the orthogonal expansion that produces PAM modulated signal. Hence, the
-% factor of Ts is not required.
-
-if (debug)
-   % To understand the following, consult page 26, chap 9 of Gallager's
-   % book on Digital Comm I.
-   fprintf('\n--- Energy/Power Measurements ---\n');
-   % Due to the invariance of the inner product, the average transmit
-   % energy (given the basis are orthonormal) should be close to Ex:
-   tx_avg_energy = mean(abs(tx_signals).^2);
-   % Note the above does not have the Ts factor, because "tx_signals"
-   % multiply orthonormal basis already.
-   fprintf('Measured average Tx energy:\t %g\n', tx_avg_energy);
-   fprintf('Spec average Tx energy (Ex):\t %g\n', Ex);
-   % Upsampled sequence average energy
-   tx_total_energy = Ts * norm(tx_waveform).^2;
-   tx_avg_energy_sampled = tx_total_energy / length(tx_waveform);
-   % In contrast to "tx_avg_energy", the above comes from samples of the
-   % sinc-interpolation formula, which is not an orthonormal expansion, but
-   % orthogonal. Thus, the Ts is required.
-   fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
-   fprintf('Observe that Es = Ex/L\n');
-   fprintf('    (Ex/L):                \t %g\n', Ex/L);
-   fprintf('--\n');
-   % The transmit power is equivalent to the mean in the transmit signal
-   % sequence.
-   Ex_over_Tsym = tx_avg_energy / Tsym;
-   Es_over_Ts = tx_avg_energy_sampled / Ts;
-   fprintf('Ex/Tsym:\t %g\n', Ex_over_Tsym);
-   fprintf('Es/Ts:  \t %g\n', Es_over_Ts);
-   fprintf('Spec Px:\t %g\n', Px);
-   fprintf('\n--- Total Energy ---\n');
-   fprintf('%.E symbols require:\t %g J\n', nSymbols, Ex * nSymbols);
-   fprintf('Measured energy:\t %g J\n', tx_total_energy);
-end
-
-%% Transmission through channel
-
-% Receive signal past channel, but pre noise:
-rx_pre_noise = Ts * conv(h, tx_waveform);
-
-% AWGN:
-noise = sqrt(N0_over_2/Ts) * randn(size(rx_pre_noise));
-% An explanation can be found in Robert Gallager's material for the
-% Principles of Digital Communications I course, Chaper 9, footnote 25.
-% Rephrased slightly (for compatibility with the nomenclature in this
-% script), it can be understood as follows:
-%   The sinc functions in the orthogonal expansion (sampling theorem) have
-%   energy Ts, so the variance of each real and imaginary coefficient in
-%   the noise expansion must be scaled down by (Ts) from the noise energy
-%   N0/2 per degree of freedom to compensate the sinc scaling. In the end,
-%   iid variables with N0/2 variance are obtained.
-
-if (debug)
-    fprintf('\n--- Noise Power Measurements ---\n');
-    % Compare with Mathworks results
-    AWGN = comm.AWGNChannel;
-    AWGN.NoiseMethod = 'Signal to noise ratio (Es/No)';
-    AWGN.EsNo = 10*log10(( (Ex/(L^2)) /(2*N0_over_2)));
-    AWGN.SignalPower = Px;
-    AWGN.SamplesPerSymbol = L;
-    noise_mtwks = AWGN.step(zeros(size(rx_pre_noise))); % AWGN channel
-    fprintf('Nominal N0/2:\t %g\n', N0_over_2);
-    fprintf('Measured noise variance per real dim:\t %g\n', ...
-        Ts * var(noise));
-    fprintf('Mathworks noise variance per real dim:\t %g\n', ...
-        Ts * var(noise_mtwks));
-end
-
 %% Equalizer Design
 
 % Define equalizers and receive filters
@@ -367,6 +288,87 @@ switch (equalizer)
         % e.g., the solution for exercise 3.4, which considers the
         % conventional matched filter receiver.
         unbiasing_factor = (1/norm_p);
+end
+
+%% Waveform generation - upsample and filter
+
+signals_up          = zeros(1,nSymbols*L);
+signals_up(1:L:end) = tx_signals;
+% When upsampling a sequence and low-pass filtering to remove images, the
+% ideal LPF should have normalized bandwidth pi/L and be of unitary energy.
+% Hence, its gain has to be sqrt(L).
+
+% Shaped waveform:
+tx_waveform = conv(htx, signals_up(:));
+% IMPORTANT: this is the only convolution that is not actually in the
+% sense of Table 3.1. Convolution here is just an artifact for producing
+% the orthogonal expansion that produces PAM modulated signal. Hence, the
+% factor of Ts is not required.
+
+if (debug)
+   % To understand the following, consult page 26, chap 9 of Gallager's
+   % book on Digital Comm I.
+   fprintf('\n--- Energy/Power Measurements ---\n');
+   % Due to the invariance of the inner product, the average transmit
+   % energy (given the basis are orthonormal) should be close to Ex:
+   tx_avg_energy = mean(abs(tx_signals).^2);
+   % Note the above does not have the Ts factor, because "tx_signals"
+   % multiply orthonormal basis already.
+   fprintf('Measured average Tx energy:\t %g\n', tx_avg_energy);
+   fprintf('Spec average Tx energy (Ex):\t %g\n', Ex);
+   % Upsampled sequence average energy
+   tx_total_energy = Ts * norm(tx_waveform).^2;
+   tx_avg_energy_sampled = tx_total_energy / length(tx_waveform);
+   % In contrast to "tx_avg_energy", the above comes from samples of the
+   % sinc-interpolation formula, which is not an orthonormal expansion, but
+   % orthogonal. Thus, the Ts is required.
+   fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
+   fprintf('Observe that Es = Ex/L\n');
+   fprintf('    (Ex/L):                \t %g\n', Ex/L);
+   fprintf('--\n');
+   % The transmit power is equivalent to the mean in the transmit signal
+   % sequence.
+   Ex_over_Tsym = tx_avg_energy / Tsym;
+   Es_over_Ts = tx_avg_energy_sampled / Ts;
+   fprintf('Ex/Tsym:\t %g\n', Ex_over_Tsym);
+   fprintf('Es/Ts:  \t %g\n', Es_over_Ts);
+   fprintf('Spec Px:\t %g\n', Px);
+   fprintf('\n--- Total Energy ---\n');
+   fprintf('%.E symbols require:\t %g J\n', nSymbols, Ex * nSymbols);
+   fprintf('Measured energy:\t %g J\n', tx_total_energy);
+end
+
+%% Transmission through channel
+
+% Receive signal past channel, but pre noise:
+rx_pre_noise = Ts * conv(h, tx_waveform);
+
+% AWGN:
+noise = sqrt(N0_over_2/Ts) * randn(size(rx_pre_noise));
+% An explanation can be found in Robert Gallager's material for the
+% Principles of Digital Communications I course, Chaper 9, footnote 25.
+% Rephrased slightly (for compatibility with the nomenclature in this
+% script), it can be understood as follows:
+%   The sinc functions in the orthogonal expansion (sampling theorem) have
+%   energy Ts, so the variance of each real and imaginary coefficient in
+%   the noise expansion must be scaled down by (Ts) from the noise energy
+%   N0/2 per degree of freedom to compensate the sinc scaling. In the end,
+%   iid variables with N0/2 variance are obtained.
+
+if (debug)
+    fprintf('\n--- Noise Power Measurements ---\n');
+    % Compare with Mathworks results
+    AWGN = comm.AWGNChannel;
+    AWGN.NoiseMethod = 'Signal to noise ratio (Es/No)';
+    AWGN.EsNo = 10*log10(( (Ex/(L^2)) /(2*N0_over_2)));
+    AWGN.SignalPower = Px;
+    AWGN.SamplesPerSymbol = L;
+    noise_mtwks = AWGN.step(zeros(size(rx_pre_noise))); % AWGN channel
+    fprintf('Nominal N0/2:\t %g\n', N0_over_2);
+    fprintf('Measured noise variance per real dim:\t %g\n', ...
+        Ts * var(noise));
+    fprintf('Mathworks noise variance per real dim:\t %g\n', ...
+        Ts * var(noise_mtwks));
 end
 
 %% Anti-aliasing LPF at Rx
