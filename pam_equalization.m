@@ -26,17 +26,17 @@ N           =   1;      % Dimensions per symbol
 nBits       =   4e5;    % Number of transmit symbols
 debug       =   0;      % Enable plots and extra information
 rollOff     =   0.1;    % Roll-off factor
-L           =   4;      % Oversampling (support only for integer values)
-W           =   5e3;    % Nominal bandwith (Hz)
+L           =   1;      % Oversampliqng (support only for integer values)
+W           =   1e3;    % Nominal bandwith (Hz)
 N_T         =   10;     % Raised-cosine group-delay in symbols
-Px          =   1e-3;   % Transmit Power (W)
-N0_over_2   =   1e-13;  % Noise PSD (W/Hz/dim) and variance per dimension
-M           =   16;
+Px          =   2e3;    % Transmit Power (W)
+N0_over_2   =   0.181;  % Noise PSD (W/Hz/dim) and variance per dimension
+M           =   4;
 ideal_chan  =   0;
 en_noise    =   1;
 equalizer   =   2;      % 0) no equalizer; 1) FIR MMSE-DFE; 2) FIR MMSE-LE
 % MMSE Parameters (if used)
-Nf = 10;
+Nf = 3;
 % MMSE-DFE:
 Nb = 2;
 
@@ -122,7 +122,7 @@ end
 if (ideal_chan)
     h = 1;
 else
-    h = [0.9 1];
+    h = (1/Ts)*[0.9 1];
 end
 % Note: the energy is not very important here, because there is not too
 % much to do about the channel attenuation/gain anyway.
