@@ -204,7 +204,6 @@ switch (equalizer)
         % FIR design
         %
         nu = ceil((length(p_tilde)-1)/L);  % Pulse response dispersion
-        delta = round((Nf + nu)/2);        % Equalized system delay
 
         if (equalizer == 2)
             fprintf('\n-------------- FIR MMSE-LE --------------\n\n');
@@ -219,9 +218,11 @@ switch (equalizer)
             p_tilde,...
             Nf,...
             Nb,...
-            delta,...
+            -1,... % choose the best delay delta
             Ex,...
             (L * N0_over_2)*[1; zeros(Nf*L-1,1)]);
+        % Save the optimum delay
+        delta = opt_delay;
         % Notes:
         %   #1: The last argument is the noise autocorrelation vector
         %       (one-sided).
@@ -377,6 +378,43 @@ switch (equalizer)
     case 1 % MMSE-DFE
         % Feed-forward section
         z = conv(w, rx_waveform);
+        % Note: the Ts factor is not necessary here, since it is not
+        % considered in the derivation. Furthermore, convolution here is
+        % used solely to implement the inner product of (3.344).
+
+        % Skip MMSE filter delay and Acquire a window with nSymbols * L
+        % samples. Again, recall nu and Nf are given in terms of T-spaced
+        % symbols, not samples, so multiplication by L is required.
+        z = z( (delta*L + 1) : (delta + nSymbols)*L );
+        % Down-sample to obtain a symbol-spaced sequence
+        z_k = z(1:L:nSymbols*L).';
+
+        % Since the DFE involves feedback, decision has to be made
+        % iteratively
+        z_dec = zeros(nSymbols, 1);
+        for k = 1 : nSymbols
+            k_oldest = max([1  (k - Nb)]);
+            if (k > Nb)
+                n_b_taps = Nb;
+            else
+                n_b_taps = k - 1;
+            end
+            % Symbol after feedback filter
+            if (n_b_taps > 0)
+                z_prime_k = z_k(k) - b * z_dec(k_oldest:(k-1))';
+            else
+                z_prime_k = z_k(k);
+            end
+            % Remove bias before decision and unscale back to original
+            % constellation:
+            rx_decSymbols(k) = ...
+                pamdemod(z_prime_k * unbiasing_factor / Scale, M);
+            % Re-modulate to obtain the corresponding symbols for the
+            % decision:
+            z_dec(k) = Scale * pammod(rx_decSymbols(k), M);
+        end
+
+
 
     case 2 % MMSE-LE
         % Feed-forward section
@@ -422,7 +460,11 @@ if (debug)
 end
 
 %% Decision
-rx_decSymbols = pamdemod(z_k_unscaled, M);
+
+% Except for the DFE, perform decision in the entire vector at once
+if (equalizer ~= 1)
+    rx_decSymbols = pamdemod(z_k_unscaled, M);
+end
 % Filter NaN
 rx_decSymbols(isnan(rx_decSymbols)) = 0;
 rx_binSymbols = de2bi(rx_decSymbols);
