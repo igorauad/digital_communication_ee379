@@ -125,11 +125,9 @@ if (L > 1)
     htx    = rcosine(1, L, 'sqrt', rollOff, N_T);
     % Energy of the continuous-time transmit basis function:
     E_htx  = Ts * sum(abs(htx).^2);
-    % Normalize for energy L (in continuous-time):
-    htx    = sqrt(L) * htx * (1/sqrt(E_htx));
-    % Ts * sum(abs(htx).^2) now is L
-    % Recall that this is required in order for the LPF following the
-    % upsampling operation to preserve the signal energy.
+    % Normalize for unitary energy (in continuous-time):
+    htx    = htx * (1/sqrt(E_htx));
+    % Ts * sum(abs(htx).^2) now is 1
 else
     % Without oversampling, pulse shaping (other than the T-spaced sinc)
     % can not be applied.
@@ -275,13 +273,8 @@ switch (equalizer)
 
     otherwise
         % Matched filter receiver
-        hrx  = conj(fliplr(htx)) / sqrt(L);
-        % Notes:
-        % #1 "Ts * conv(htx, hrx)" should be delta_k (for t = kTsym)
-        % #2 The sqrt(L) factor is required because the LPF that precedes
-        % a downsampler, unlike the one that follows an upsampler, does not
-        % have to present energy L. Instead, it should be of unitary
-        % energy.
+        hrx  = conj(fliplr(htx));
+        % Notes "Ts * conv(htx, hrx)" should be delta_k (for t = kTsym)
 
         % For the matched filter receiver, the factor that removes the bias
         % prior to the decision device is the reciprocal of ||p||. See,
