@@ -381,8 +381,9 @@ switch (equalizer)
     case 2 % MMSE-LE
         % Feed-forward section
         z = conv(w, rx_waveform);
-        % Note: the Ts factor is not necessary here, since there is not
-        % turning back to analog domain again past this point
+        % Note: the Ts factor is not necessary here, since it is not
+        % considered in the derivation. Furthermore, convolution here is
+        % used solely to implement the inner product of (3.292).
 
         % Skip MMSE filter delay and Acquire a window with nSymbols * L
         % samples. Again, recall nu and Nf are given in terms of T-spaced
