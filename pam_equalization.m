@@ -8,10 +8,14 @@
 % The models used in this script are mostly based on Figure 3.7 and the
 % conventions of Table 3.1 are used throughout.
 %
-% Tips to understand conversion factors of T (Table 3.1):
+% Tips to properly use the conversion factors of T from Table 3.1:
 %   - If a function has unitary energy in continuous time, then its
 %   discrete-time equivalent has norm^2 of 1/Ts (inverse of the sampling
-%   period.
+%   period).
+%   - Be very attentive to orthogonal vs. orthonormal expansions. The
+%   factor of T above only applies in the specific case of the
+%   sinc-interpolation formula, which is an orthogonal expansion. For
+%   orthonormal expansions, it should not be used.
 %
 
 clearvars, close all;
@@ -58,23 +62,23 @@ Ex     = Px * Tsym; % Average energy of a constellation
 Ex_bar = Ex / N;    % Energy per dimension
 
 % Scale factor for the PAM constellation to present average energy of "Ex":
-Scale = modnorm(pammod(0:(M-1), M), 'avpow', Px);
-% Why Px, instead of Ex? Because the energy within symbol-spaced samples of
-% the transmit signal is actually Tsym * E{ |x_k|^2 }, due to the fact that
-% the sincs in the sampling theorem sinc-interpolation formula are not
-% orthonormal, but only orthogonal. The former implies the samples must be
-% scaled by sqrt(Tsym), so a factor of Tsym appears multiplying the norm.
-% Since
+Scale = modnorm(pammod(0:(M-1), M), 'avpow', Ex);
+% - Why Ex, when the modnorm criteria is "avpow"?
+%   First of all, most DSP authors consider the average signal power as
+% mean(abs(x).^2). Naturally, this is the convention adopted here within
+% "modnorm" function. Note, however, that digital communications authors
+% seldom forget about continuous-time, so they reconcile the two "worlds".
+% For PAM, each constellation symbol is a coefficient that multiplies a
+% unitary-energy transmit basis function, so by taking the integral in CT,
+% it is easy to show that each Tsym-spaced pulses will have energy equal
+% to |x_k|^2, where x_k is a symbol taken from the constellation alphabet
+% (thought as an impulse in CT). Therefore, clearly "mean(abs(x).^2)" in
+% this case is the average energy, not the average power. Finally, since
+% mean(abs(x).^2) is the criteria that is adopted in modnorm, we pass Ex as
+% argument, because:
 %
-%   Tsym * E{ |x_k|^2 } = Ex                                        (1)
+%   E{ |x_k|^2 } = Ex
 %
-% it follows that:
-%
-%   E{ |x_k|^2 } = Ex/Tsym = Px                                     (2)
-%
-% Q.E.D
-%
-
 
 % Noise energy per dimensions
 %
@@ -95,6 +99,7 @@ Scale = modnorm(pammod(0:(M-1), M), 'avpow', Px);
 % the noise energy per dimension becomes (N0/2) * L. In contrast, the Tx
 % signal energy is assumed to be contained within -1/T to 1/T and, thus,
 % does not change. As a result, the SNRmfb is reduced by a factor of L.
+
 switch (equalizer)
     case 2
         noise_en_per_dim = L * N0_over_2;
@@ -216,13 +221,20 @@ if (debug)
    fprintf('\n--- Energy/Power Measurements ---\n');
    % Due to the invariance of the inner product, the average transmit
    % energy (given the basis are orthonormal) should be close to Ex:
-   tx_avg_energy = Tsym * mean(abs(tx_signals).^2);
+   tx_avg_energy = mean(abs(tx_signals).^2);
+   % Note the above does not have the Ts factor, because "tx_signals"
+   % multiply orthonormal basis already.
    fprintf('Measured average Tx energy:\t %g\n', tx_avg_energy);
    fprintf('Spec average Tx energy (Ex):\t %g\n', Ex);
    % Upsampled sequence average energy
-   tx_avg_energy_sampled = Ts * mean(abs(signals_up).^2);
+   tx_total_energy = Ts * norm(tx_waveform).^2;
+   tx_avg_energy_sampled = tx_total_energy / length(tx_waveform);
+   % In contrast to "tx_avg_energy", the above comes from samples of the
+   % sinc-interpolation formula, which is not an orthonormal expansion, but
+   % orthogonal. Thus, the Ts is required.
    fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
-   fprintf('Observe Es = Ex/(L^2)\n');
+   fprintf('Observe that Es = Ex/L\n');
+   fprintf('    (Ex/L):                \t %g\n', Ex/L);
    fprintf('--\n');
    % The transmit power is equivalent to the mean in the transmit signal
    % sequence.
@@ -231,6 +243,9 @@ if (debug)
    fprintf('Ex/Tsym:\t %g\n', Ex_over_Tsym);
    fprintf('Es/Ts:  \t %g\n', Es_over_Ts);
    fprintf('Spec Px:\t %g\n', Px);
+   fprintf('\n--- Total Energy ---\n');
+   fprintf('%.E symbols require:\t %g J\n', nSymbols, Ex * nSymbols);
+   fprintf('Measured energy:\t %g J\n', tx_total_energy);
 end
 
 %% Transmission through channel
