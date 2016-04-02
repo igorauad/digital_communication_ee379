@@ -159,7 +159,7 @@ fprintf('Pe (NNUB):\t %g\n', Pe);
 
 % Also consider distortion
 if (~ideal_chan)
-   fprintf('\n----- ISI Characterization -----\n');
+   fprintf('\n--------- ISI Characterization ----------\n\n');
    % Maximum value for |x_k|
    x_abs_max = max(abs(pammod(0:(M-1), M)));
    % Mean-square distortion - Eq. (3.33)
@@ -207,14 +207,13 @@ switch (equalizer)
         delta = round((Nf + nu)/2);        % Equalized system delay
 
         if (equalizer == 2)
-            fprintf('\n------- FIR MMSE-LE -------\n');
+            fprintf('\n-------------- FIR MMSE-LE --------------\n\n');
             Nb = 0;
         else
-            fprintf('\n------- FIR MMSE-DFE -------\n');
+            fprintf('\n-------------- FIR MMSE-DFE -------------\n\n');
         end
 
         % The FIR Equalizer can be obtained using the DFE program:
-        fprintf('\n-- EE379A DFE Implementation --\n');
         [SNR_mmse_unbiased_db,w_t,opt_delay]=dfsecolorsnr(...
             L,...
             p_tilde,...
@@ -286,7 +285,7 @@ tx_waveform = conv(htx, signals_up(:));
 if (debug)
    % To understand the following, consult page 26, chap 9 of Gallager's
    % book on Digital Comm I.
-   fprintf('\n--- Energy/Power Measurements ---\n');
+   fprintf('\n------- Energy/Power Measurements -------\n\n');
    % Due to the invariance of the inner product, the average transmit
    % energy (given the basis are orthonormal) should be close to Ex:
    tx_avg_energy = mean(abs(tx_signals).^2);
@@ -303,7 +302,7 @@ if (debug)
    fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
    fprintf('Observe that Es = Ex/L\n');
    fprintf('    (Ex/L):                \t %g\n', Ex/L);
-   fprintf('--\n');
+   fprintf('\n');
    % The transmit power is equivalent to the mean in the transmit signal
    % sequence.
    Ex_over_Tsym = tx_avg_energy / Tsym;
@@ -311,7 +310,7 @@ if (debug)
    fprintf('Ex/Tsym:\t %g\n', Ex_over_Tsym);
    fprintf('Es/Ts:  \t %g\n', Es_over_Ts);
    fprintf('Spec Px:\t %g\n', Px);
-   fprintf('\n--- Total Energy ---\n');
+   fprintf('\nTotal Energy\n');
    fprintf('%.E symbols require:\t %g J\n', nSymbols, Ex * nSymbols);
    fprintf('Measured energy:\t %g J\n', tx_total_energy);
 end
@@ -334,7 +333,7 @@ noise = sqrt(N0_over_2/Ts) * randn(size(rx_pre_noise));
 %   iid variables with N0/2 variance are obtained.
 
 if (debug)
-    fprintf('\n--- Noise Power Measurements ---\n');
+    fprintf('\n-------- Noise Power Measurements -------\n\n');
     % Compare with Mathworks results
     AWGN = comm.AWGNChannel;
     AWGN.NoiseMethod = 'Signal to noise ratio (Es/No)';
@@ -429,7 +428,7 @@ rx_binSymbols = de2bi(rx_decSymbols);
 rx_bitstream  = rx_binSymbols(:);
 
 %% Symbol error
-fprintf('\n----- Performance -----\n');
+fprintf('\n-------------- Performance --------------\n');
 
 [nSymErrors, SER, symErrArray] = symerr(tx_decSymbols, rx_decSymbols(:));
 
