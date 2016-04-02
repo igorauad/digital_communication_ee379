@@ -281,19 +281,6 @@ if (debug)
         Ts * var(noise_mtwks));
 end
 
-% Rx waveform
-if (en_noise)
-    rx_waveform = rx_pre_noise + noise;
-else
-    rx_waveform = rx_pre_noise;
-end
-
-if (debug)
-   pwelch(tx_waveform,[],[],[],Fs,'twosided');
-   figure
-   pwelch(noise,[],[],[],Fs,'twosided');
-end
-
 %% Equalizer Design
 
 % Define equalizers and receive filters
@@ -382,10 +369,30 @@ switch (equalizer)
         unbiasing_factor = (1/norm_p);
 end
 
-%% Equalize the received samples
+%% Anti-aliasing LPF at Rx
 
-% Anti-aliasing receive filtering:
-rx_waveform = Ts * conv(rx_waveform, hrx);
+% Rx waveform - After anti-aliasing receive filtering:
+if (en_noise)
+    rx_waveform = Ts * conv(rx_pre_noise + noise, hrx);
+else
+    rx_waveform = Ts * conv(rx_pre_noise, hrx);
+end
+
+% if (debug)
+   pwelch(tx_waveform,[],[],[],Fs,'twosided');
+   plot_obj = findobj(gcf);
+   alllines=findall(plot_obj,'Type','line');
+   set(alllines,'Color','red');
+   hold on
+   pwelch(noise,[],[],[],Fs,'twosided');
+   hold on
+   pwelch(rx_pre_noise,[],[],[],Fs,'twosided');
+   plot_obj = findobj(gcf);
+   plot_obj(end-2).Color = [1 0.5 0];
+   legend('Tx-Pre-Chan', 'Noise', 'Tx-Post-Chan')
+% end
+
+%% Equalize the received samples
 
 switch (equalizer)
     case 1 % MMSE-DFE
