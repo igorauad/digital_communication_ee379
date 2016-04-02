@@ -357,7 +357,7 @@ else
     rx_waveform = Ts * conv(rx_pre_noise, hrx);
 end
 
-% if (debug)
+if (debug)
    pwelch(tx_waveform,[],[],[],Fs,'twosided');
    plot_obj = findobj(gcf);
    alllines=findall(plot_obj,'Type','line');
@@ -369,7 +369,7 @@ end
    plot_obj = findobj(gcf);
    plot_obj(end-2).Color = [1 0.5 0];
    legend('Tx-Pre-Chan', 'Noise', 'Tx-Post-Chan')
-% end
+end
 
 %% Equalize the received samples
 
@@ -409,7 +409,7 @@ z_k = z_k * unbiasing_factor;
 % Scale back to "standard" pam constellation with d=2 for comparison:
 z_k_unscaled = z_k / Scale;
 
-% if (debug)
+if (debug)
     figure
     plot(Tsym*(0:nSymbols-1), unscaled_signals, 'o')
     xlabel('Tempo (s)')
@@ -418,7 +418,7 @@ z_k_unscaled = z_k / Scale;
     hold on
     plot(Tsym*(0:nSymbols-1), z_k_unscaled, 'ro')
     legend('Original','Equalized')
-% end
+end
 
 %% Decision
 rx_decSymbols = pamdemod(z_k_unscaled, M);
