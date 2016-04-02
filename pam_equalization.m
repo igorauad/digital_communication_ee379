@@ -80,33 +80,6 @@ Scale = modnorm(pammod(0:(M-1), M), 'avpow', Ex);
 %   E{ |x_k|^2 } = Ex
 %
 
-% Noise energy per dimensions
-%
-%   It depends on the Rx filter, which is different for each receiver (a
-%   receiver in this script is characterized by a given equalizer).
-%
-% - Matched Filter
-%   For the matched filter receiver, the noise energy per dimension remains
-% N0/2 regardless of oversampling.
-%
-% - MMSE Receiver:
-%
-%   For the MMSE receiver, in the presence of oversampling, the Rx filter
-% is assumed to be a "brick-wall" filter of bandwidth "L" times larger than
-% the nominal bandwidth, but with the same conventional magnitude sqrt(T)
-% that preserves the spectrum within the central period.
-%   Thus, the analog filter energy becomes L, rather than unitary, so that
-% the noise energy per dimension becomes (N0/2) * L. In contrast, the Tx
-% signal energy is assumed to be contained within -1/T to 1/T and, thus,
-% does not change. As a result, the SNRmfb is reduced by a factor of L.
-
-switch (equalizer)
-    case 2
-        noise_en_per_dim = L * N0_over_2;
-    otherwise
-        noise_en_per_dim = N0_over_2;
-end
-
 %% Generate random symbols
 
 tx_decSymbols = randi(M, nSymbols, 1) - 1; % Decimals from 0 to M-1
@@ -162,7 +135,6 @@ p = Ts * conv(h, htx);
 % Pulse norm:
 norm_p_sq = Ts * norm(p)^2;
 norm_p = sqrt(norm_p_sq);
-% Note: SNR_{MFB} has to be found using p(t) before anti-aliasing filter.
 
 % Unitary-energy (in continuous-time) pulse response:
 phi_p = p / norm_p;
@@ -174,9 +146,11 @@ if(q_max-1 > 1e-8)
    warning('q(t) peak is not unitary.');
 end
 
-fprintf('\n--------- MFB ---------\n');
-SNRmfb = Ex_bar * norm_p_sq / noise_en_per_dim;
-fprintf('\nSNRmfb:   \t %g dB\n', 10*log10(SNRmfb))
+fprintf('\n------------------ MFB ------------------\n\n');
+% Note: SNR_{MFB} has to be found using p(t) before the anti-aliasing
+% filter (see the answer to Exercise 3.34 in HW7).
+SNRmfb = Ex_bar * norm_p_sq / N0_over_2;
+fprintf('SNRmfb:   \t %g dB\n', 10*log10(SNRmfb))
 % Average number of nearest neighbors:
 Ne = 2 * (1 - 1/M);
 % NNUB based on the SNRmfb
@@ -205,10 +179,10 @@ end
 % Define equalizers and receive filters
 switch (equalizer)
     case {1,2}
-        % First, MMSE is fractionally spaced and incorporates both
+        % First of all, MMSE is fractionally spaced and incorporates both
         % matched filtering and equalization.
         % Secondly, it is preceded by an anti-alias filter whose gain is
-        % sqrt(Tsym) over the entire band from -L*pi/Tsym to L*pi/Tsym, 
+        % sqrt(Tsym) over the entire band from -L*pi/Tsym to L*pi/Tsym,
         % namely over -pi/Ts to pi/Ts. Since a regular unitar-energy filter
         % over this band would present magnitude sqrt(Ts) in the freq.
         % domain, in order for the filter to have magnitude sqrt(Tsym), it
@@ -248,9 +222,20 @@ switch (equalizer)
             Nb,...
             delta,...
             Ex,...
-            noise_en_per_dim*[1; zeros(Nf*L-1,1)]);
-        % Note: the last argument is the noise autocorrelation vector
-        % (one-sided).
+            (L * N0_over_2)*[1; zeros(Nf*L-1,1)]);
+        % Notes:
+        %   #1: The last argument is the noise autocorrelation vector
+        %       (one-sided).
+        %   #2: For the MMSE receiver, in the presence of oversampling, the
+        %       Rx filter is assumed to be preceded by a "brick-wall"
+        %       anti-alising filter with cuttof at fs/2, or, equivalently,
+        %       at 2*pi*fs/2 = pi/Ts, but with the same conventional
+        %       magnitude sqrt(Tsym) that preserves the spectrum within the
+        %       central period. Thus, the analog filter energy becomes L,
+        %       rather than unitary. Consequently, the noise energy per
+        %       dimension becomes (N0/2) * L. In contrast, the Tx signal
+        %       energy is assumed to be contained within -1/Tsym to 1/Tsym
+        %       and, thus, does not change.
         w = w_t(1:(Nf*L));
         b = -w_t((Nf*L) + 1:(Nf*L) + Nb);
 
