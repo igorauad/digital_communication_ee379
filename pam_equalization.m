@@ -199,6 +199,15 @@ switch (equalizer)
 
         % Combined pulse response + anti-aliasing filter:
         p_tilde = Ts * conv(p, hrx);
+        % Note: the Ts * convolution here is the same effect as:
+        %   Ts * sqrt(L/Ts)
+        %   = sqrt(Ts) * sqrt(L)
+        %   = sqrt(L * Ts)
+        %   = sqrt(Tsym)
+        %
+        %   So, the same effect could be obtained if the pulse response was
+        %   multiplied by sqrt(Tsym) directly, as in the solution for
+        %   Exercise 3.18
 
         %
         % FIR design
