@@ -100,7 +100,7 @@ gap_computed = SNRm_u / SNR_minimum;
 % However, sometimes the spectral effiency is arbitrarily reduced such that
 % more margin is left for the errors in the communication. By recalling
 % that spectral efficiency is R / W, one concludes normally this implies a
-% lower data rate. 
+% lower data rate.
 %   The constrained spectral effiency is given by:
 %       2 * b_bar_constrained = log2(1 + SNR/(gap * gamma))
 %   Hence, gamma (the margin) can be obtained by:

@@ -112,7 +112,7 @@ spectral_efficiency = 2*b_bar; % b/2D (bits per 2 dimensions)
 SNR_min = 2^spectral_efficiency - 1;
 % The normalized signal-to-noise ratio (gap to capacity) is defined as:
 %   gap = SNR / SNR_min
-% Thus, given the gap that was chosen for the water-filling computation, 
+% Thus, given the gap that was chosen for the water-filling computation,
 % the SNR can be computed as (de-normalization):
 SNRdmt = 10*log10(gap * SNR_min);
 

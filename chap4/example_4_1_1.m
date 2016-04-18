@@ -16,13 +16,13 @@ sigma_n = 0.181;
 % Vector of used real dimensions
 nDim = [ 1 2 2 2 0 ];
 
-% Energy per subchannel 
+% Energy per subchannel
 % At this point, water-filling has not been presented, so the energy and
 % bit load are simply "guessed". An equal amount of energy is allocated to
 % each available (used) dimension.
 Ex_bar = Ex / sum(nDim); % Energy per dimension
-En     = Ex_bar * nDim;  % Energy per subchannel   
-En_bar = En ./ nDim;     % Energy per dimension per subchannel   
+En     = Ex_bar * nDim;  % Energy per subchannel
+En_bar = En ./ nDim;     % Energy per dimension per subchannel
 
 % Arbitrary bit load aiming at 1 bit/dimension:
 bn     = [ 1.6 3 2.4 1 0 ];

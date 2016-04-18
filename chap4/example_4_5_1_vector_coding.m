@@ -16,7 +16,7 @@ gap     = 10^(gap_db/10); % Gap in linear scale
 sigma_n = 0.181;
 
 % Energy per used dimension (only N are used, although there are N + nu)
-Ex_bar = Ex / N    
+Ex_bar = Ex / N
 
 
 %% Channel
@@ -31,10 +31,10 @@ P = convmtx(h, N);
 
 
 %% Vector Coding
-% SVD of the channel matrix leads to the matrices that contain the transmit 
+% SVD of the channel matrix leads to the matrices that contain the transmit
 % basis vectors and receive "matched filters" for each subchannel.
 
-[F,S,M] = svd(P); 
+[F,S,M] = svd(P);
 
 % In the end, the response at each subchannel is given by the singular
 % values in "S"
@@ -48,7 +48,7 @@ gn = (diag(S).^2) / sigma_n;
 
 [bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar, N, gap);
 % Note the energy per dimension passed to the water-filler is the one
-% computed by dividing the total budget by the number of used dimensions 
+% computed by dividing the total budget by the number of used dimensions
 % (N), which excludes the "wasted" dimensions. Likewise, the number of
 % dimensions passed is N, not N + nu.
 
@@ -71,10 +71,10 @@ norm(M)
 % Double check the transmit energy
 x = M * [ sqrt(En_bar).' ; zeros(nu, 1)];
 sum(abs(x).^2)
-% Should be equal to 
+% Should be equal to
 Ex
 
-%% SNR 
+%% SNR
 
 % SNR per subchannel
 SNRn = En_bar(usedTones) .* gn(usedTones).'

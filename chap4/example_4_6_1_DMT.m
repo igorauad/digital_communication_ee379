@@ -1,7 +1,7 @@
 %% Example 4.6.1 - DMT
 % By introducing the cyclic prefix, a DMT transmitter is similar to a VC
 % transmitter, but with the SVD replaced by the eigendecomposition and with
-% the decomposition unitary matrices being related to the DFT/IDFT matrix, 
+% the decomposition unitary matrices being related to the DFT/IDFT matrix,
 % which avoids the need for knowing the channel impulse response in order
 % to design transmit/receive basis functions.
 
@@ -25,9 +25,9 @@ gap     = 10^(gap_db/10); % Gap in linear scale
 % Noise energy per dimension (N0/2):
 sigma_n = 0.181;
 
-% Energy per used dimension (only N real dimensions are effectively are 
+% Energy per used dimension (only N real dimensions are effectively are
 % used, although there are N + nu):
-Ex_bar = Ex / N    
+Ex_bar = Ex / N
 
 
 %% Channel
@@ -51,7 +51,7 @@ P_circ(:,1:nu) = P_circ(:,1:nu) + P(:, N+1:N+nu);
 
 %% Eigendecomposition, DFT and Channel Response comparison
 
-[M,S] = eig(P_circ); 
+[M,S] = eig(P_circ);
 
 % By comparing M to the DFT matrix or S to the channel response, it is
 % possible to check that they contain the same elements. The difference is
@@ -87,7 +87,7 @@ SNRdmt = 10*log10(gap*(2^(2*b_bar)-1));
 % Number of used tones, according to the water-filling:
 N_star = length(usedTones);
 
-%% SNR 
+%% SNR
 
 % SNR per subchannel
 SNRn = En_bar(usedTones) .* gn(usedTones)
