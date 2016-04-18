@@ -15,9 +15,9 @@ nDim    = N + nu;  % Number of real dimensions
 gap_db  = 0;       % SNR gap to capacity (dB)
 Ex      = nDim;    % Total energy budget for each DMT symbol
 % Note: since repetition of samples in the prefix increases energy,
-% differently to VC, here the water-fill contraint must be scaled by a
-% factor of (N/nDim), so that the effective transmit energy in the end is
-% equal to Ex/
+% differently to VC, here Ex is not directly passed as the water-fill
+% energy. Instead, Ex is scaled by a factor of (N/nDim), so that the
+% effective transmit energy in the end is equal to Ex.
 
 % Derivations
 gap     = 10^(gap_db/10); % Gap in linear scale
