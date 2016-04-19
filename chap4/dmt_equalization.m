@@ -163,7 +163,7 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
     for k = 1:(N/2 + 1)
         tx_symbols(k, :) = randi(modOrder(k), 1, nSymbols) - 1;
     end
-    
+
     %% Constellation Encoding
     for k = 1:(N/2 + 1)
         if (dim_per_subchannel(k) == 2)
@@ -172,22 +172,22 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
             X(k, :) = Scale_n(k) * pammod(tx_symbols(k, :), modOrder(k));
         end
     end
-    
+
     % Hermitian symmetry
     X(N/2+2:end, :) = flipud( conj( X(2:N/2, :) ) );
-    
+
     %% Modulation
-    
+
     x = Q' * X;
-    
+
     %% Cyclic extension
-    
+
     x_ext = [x(N-nu+1:N, :); x];
-    
+
     %% Parallel to serial
-    
+
     u = x_ext(:);
-    
+
     if (debug)
         % Note: "u" should become samples leaving the DAC. In that case,
         % they would repreent coefficients of the sampling theorem's sinc
@@ -204,9 +204,9 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
             tx_total_energy / nSymbols);
         fprintf('Nominal transmit energy per symbol:\t %g\n',Ex);
     end
-    
+
     %% Channel
-    
+
     y = conv(u, p);
     % Note:
     %   In contrast to the derivation of Chapter 3, here the scaling of Ts
@@ -243,12 +243,12 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
     %         = Ts * (1/sqrt(Ts)) * h
     %         = sqrt(Ts) * h_pre_adc
     %
-    %   Essentially, when we sample the channel, we get h, instead of 
-    %   h_pre_adc. The channel impulse response energy can be computed by 
+    %   Essentially, when we sample the channel, we get h, instead of
+    %   h_pre_adc. The channel impulse response energy can be computed by
     %   either "Ts * norm(h_pre_adc)^2" or "norm(h)^2", because both are
     %   equivalent. Similarly, the sampled response "h" can be used
     %   directly in the convolution, without a Ts factor in front.
-    
+
     % Add noise
     y = y + (sqrt(N0_over_2) * randn(length(y),1));
     % Important considerations:
@@ -263,34 +263,34 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
     % consisted of samples, the target variance for the "randn" sequence
     % would be the noise power N0_over_2 * 2W. However, the catch here is
     % that y does not represent the samples
-    
+
     %% Synchronization
-    
+
     nRxSamples = (N+nu)*nSymbols;
     y_sync     = y(1:nRxSamples);
-    
+
     %% Slicing
-    
+
     y_sliced = reshape(y_sync, N + nu, nSymbols);
-    
+
     %% Extension removal
-    
+
     y_no_ext = y_sliced(nu + 1:end, :);
-    
+
     %% Demodulation
-    
+
     Y = Q * y_no_ext;
-    
+
     %% FEQ - One-tap Frequency Equalizer
-    
+
     H_freq = fft(p, N);
     FEQ    = 1 ./ H_freq;
-    
+
     Z = diag(FEQ) * Y;
-    
+
     %% Constellation decoding (decision)
     rx_symbols = zeros(N/2+1, nSymbols);
-    
+
     for k = 1:(N/2 + 1)
         if (dim_per_subchannel(k) == 2)
             rx_symbols(k, :) = qamdemod((1/Scale_n(k)) * Z(k, :), ...
@@ -300,11 +300,11 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
                 modOrder(k));
         end
     end
-    
+
     results = BitError.step(tx_symbols(:), rx_symbols(:)); % Update BER
     numErrs = results(2);
     numBits = results(3);
-    
+
     if (debug)
         fprintf('SER:\t%g\t', results(1));
         fprintf('nErrors:\t%g\t', results(2));

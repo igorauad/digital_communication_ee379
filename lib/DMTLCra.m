@@ -5,27 +5,24 @@ function [En,bn] = DMTLCra(gn,Ex_bar,N,gap)
 % Levin Campello?s Method with DMT
 %
 % Inputs
-% P is the pulse response(an nu is set to length(p) - 1
-% SNRrcvr is the channel output SNR for an i.i.d. input
+% gn is the unitary-energy SNRs
 % Ex_bar is the normalized energy
-% N is the total number of real/complex subchannels, N>2
+% N is the total number of real dimensions
 % gap is the gap in dB
 %
 % Outputs
-% gn is the vector of channel gains
-% En is the vector energy distribution (PAM or QAM)
-% bn is the vector bit distribution (PAM or QAM)
-% b_bar is the number of bits per dimension in the DMT symbol
+% En is the vector energy distribution (PAM or QAM) per subchannel
+% bn is the vector bit distribution (PAM or QAM) per subchannel
 %
 % The first and last bins are PAM; the rest are QAM.
 % dB into normal scale
 
-gap=10^(gap/10);
+gap = 10^(gap/10);
 
 % initialization
-En=zeros(1,N/2+1);
-bn=zeros(1,N/2+1);
-decision_table=zeros(1,N/2+1);
+En = zeros(1,N/2+1);
+bn = zeros(1,N/2+1);
+decision_table = zeros(1,N/2+1);
 
 %debugging purpose
 %plot(gn)
@@ -57,10 +54,10 @@ while(1)
     else
         En(index)=En(index)+y;
         bn(index)=bn(index)+1;
-        if (index ==1 | index == N/2+1)
-            decision_table(index)=4*decision_table(index);
+        if (index ==1 || index == N/2+1)
+            decision_table(index) = 4*decision_table(index);
         else
-            decision_table(index)=2*decision_table(index);
+            decision_table(index) = 2*decision_table(index);
         end
     end
 end
