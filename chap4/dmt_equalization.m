@@ -76,7 +76,29 @@ SNRdmt = 10*log10(gap*(2^(2*b_bar)-1));
 % Number of used tones, according to the water-filling:
 N_star = length(usedTones);
 
-fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n\n', SNRdmt)
+fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n', SNRdmt)
+
+% Average probability of error
+SNR_n = En_bar .* gn; % SNR per real dimension
+Pe_n = zeros(N/2 + 1, 1);
+for k = 1:(N/2 + 1)
+    M = 2^(floor(bn_bar(k) * dim_per_subchannel(k))); % Constellation size
+    if (dim_per_subchannel(k) == 2)
+        % QAM Nearest-neighbors Union Bound
+        Pe_n(k) = 4 * (1 - 1/sqrt(M)) * ...
+            qfunc(sqrt(3*SNR_n(k) / (M - 1)));
+    else
+        % PAM Nearest-neighbors Union Bound
+        Pe_n(k) = 2 * (1 - 1/M) * ...
+            qfunc(sqrt(3*SNR_n(k) / (M^2 - 1)));
+    end
+end
+
+fprintf('Average Pe:\t                 %g\n', mean(Pe_n));
+
+fprintf('\nNote:\n');
+fprintf('This Pe considers that the fractional bit load is rounded down');
+fprintf('\n');
 
 %% Discrete-loading: Levin Campello Rate Adaptive
 
@@ -109,6 +131,25 @@ if (debug && loading)
     ylabel('Bits');
     set(gca,'XLim',[0 N/2+1]);
 end
+
+% Average probability of error
+SNR_n = En_bar_discrete .* gn; % SNR per real dimension
+Pe_n = zeros(N/2 + 1, 1);
+for k = 1:(N/2 + 1)
+    M = 2^(bn_discrete(k)); % Constellation size
+    if (dim_per_subchannel(k) == 2)
+        % QAM Nearest-neighbors Union Bound
+        Pe_n(k) = 4 * (1 - 1/sqrt(M)) * ...
+            qfunc(sqrt(3*SNR_n(k) / (M - 1)));
+    else
+        % PAM Nearest-neighbors Union Bound
+        Pe_n(k) = 2 * (1 - 1/M) * ...
+            qfunc(sqrt(3*SNR_n(k) / (M^2 - 1)));
+    end
+end
+
+fprintf('Average Pe:\t                 %g\n', mean(Pe_n));
+
 %% Monte-carlo
 
 fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
