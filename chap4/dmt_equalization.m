@@ -2,7 +2,7 @@
 clearvars, clc
 
 % Parameters
-debug       = 1;       % Enable debug information
+debug       = 0;       % Enable debug information
 L           = 1;       % Oversampling (support only for integer values)
 W           = 1e3;     % Nominal bandwith (Hz)
 Px          = 1e-3;    % Transmit Power (W)
@@ -29,6 +29,13 @@ Ex        = Px * Tsym;      % Average DMT symbol energy
 Ex_bar    = Ex / N; % Energy per used dimension
 % Used dimensions: DC + Nyquist + (N/2)-1 complex dimensions
 
+fprintf('Bit loading:\t');
+if (loading)
+    fprintf('LC Rate Adaptive\n');
+else
+    fprintf('Water-filling\n');
+end
+
 %% Pulse Response
 
 p = [-.729 .81 -.9 2 .9 .81 .729];
@@ -44,9 +51,11 @@ Lh = length(p);
 
 % Matched-filter Bound
 SNRmfb = (Ex_bar * norm(p).^2) / N0_over_2;
-fprintf('SNRmfb:                  \t %g dB\n\n', 10*log10(SNRmfb))
+fprintf('SNRmfb:    \t %g dB\n\n', 10*log10(SNRmfb))
 
 %% Water filling
+
+fprintf('\n--------------------- Water Filling -------------------- \n\n');
 
 % SNR for unitary energy transmit symbol:
 gn = (abs(H).^2) / N0_over_2;
@@ -57,7 +66,7 @@ unusedTones = setdiff(1:N, usedTones);
 
 % Number of bits per dimension
 b_bar = (1/nDim)*(sum(bn_bar));
-fprintf('\nb_bar:                  \t %g bits/dimension\n\n', b_bar)
+fprintf('\nb_bar:                  \t %g bits/dimension\n', b_bar)
 % For gap=0 and N->+infty, this should be the channel capacity per real
 % dimension.
 
@@ -70,6 +79,8 @@ N_star = length(usedTones);
 fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n\n', SNRdmt)
 
 %% Discrete-loading: Levin Campello Rate Adaptive
+
+fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
 [En_discrete, bn_discrete] = DMTLCra(...
     gn(1:N/2 + 1),...
@@ -85,7 +96,7 @@ b_bar_discrete = 1/nDim*(sum(bn_discrete));
 % SNRdmt from the number of bits per dimension
 SNRdmt_discrete = 10*log10(gap*(2^(2*b_bar_discrete)-1));
 
-fprintf('Multi-channel SNR with discrete Loading: \t %g dB\n\n', ...
+fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
     SNRdmt_discrete);
 
 % Compare water-filling and discrete-loading
@@ -100,8 +111,9 @@ if (debug && loading)
 end
 %% Monte-carlo
 
+fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 % Constants
-maxNumErrs = 100;
+maxNumErrs = 20;
 maxNumBits = 1e12;
 
 % Preallocate
@@ -200,9 +212,9 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
         % out of the DAC, but in this case there would be a scaling factor
         % introduced by the DAC anti-imaging LPF. Both would cancel each
         % other.
-        fprintf('Transmit energy per symbol:\t %g\n', ...
+        fprintf('Transmit energy per symbol:\t%g\t', ...
             tx_total_energy / nSymbols);
-        fprintf('Nominal transmit energy per symbol:\t %g\n',Ex);
+        fprintf('Nominal:\t%g\n',Ex);
     end
 
     %% Channel
@@ -305,13 +317,13 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
     numErrs = results(2);
     numBits = results(3);
 
-    if (debug)
-        fprintf('SER:\t%g\t', results(1));
-        fprintf('nErrors:\t%g\t', results(2));
-        fprintf('nSymbols:\t%g\n', results(3));
-    end
+    fprintf('SER:\t%g\t', results(1));
+    fprintf('nErrors:\t%g\t', results(2));
+    fprintf('nSymbols:\t%g\n', results(3));
 end
 
+%% Results
+fprintf('\n----------------------- Results ------------------------ \n\n');
 fprintf('SER:          \t %g\n', results(1));
 fprintf('Total errors: \t %g\n', results(2));
 fprintf('Total symbols:\t %g\n', results(3));
