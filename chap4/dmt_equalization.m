@@ -15,6 +15,9 @@ delta_f     = 1e3;     % Subchannel bandwidth
 L           = 1;       % Oversampling Ratio
 nSymbols    = 100;     % Number of transmit symbols
 loading     = 1;       % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
+% Monte-Carlo Parameters
+maxNumErrs  = 30;
+maxNumBits  = 1e12;
 
 % Derived computations:
 Fs        = N * delta_f;
@@ -153,9 +156,6 @@ fprintf('Average Pe:\t                 %g\n', mean(Pe_n));
 %% Monte-carlo
 
 fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
-% Constants
-maxNumErrs = 20;
-maxNumBits = 1e12;
 
 % Preallocate
 X          = zeros(N, nSymbols);
