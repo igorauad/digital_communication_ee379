@@ -56,13 +56,55 @@ Lh = length(p);
 SNRmfb = (Ex_bar * norm(p).^2) / N0_over_2;
 fprintf('SNRmfb:    \t %g dB\n\n', 10*log10(SNRmfb))
 
+%% MMSE-TEQ Design
+if (equalizer)
+
+fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
+
+    if (nu >= (Lh - 1))
+       error('MMSE-TEQ is unecessary. CP is already sufficient!');
+    end
+
+    [P, w, b, SNRteq, bias] = ...
+        teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
+
+    fprintf('New SNRmfb (TEQ):         \t %g dB\n', 10*log10(SNRteq))
+
+    % Now compute the water-filling solution for the target pulse response
+    %
+    % Notes:
+    %   # 1) The water-filling solution assumes no ISI/ICI. This is safe
+    %   provided that the TEQ constrains the pulse response energy to a
+    %   portion that can be covered by the guard band.
+    %   # 2) Instead of computing the water-fill solution with the "g_n"
+    %   (unitary-energy SNRs per subchannel) computed with the "N0/2" noise
+    %   variance per dimension in the denominator, the error power should
+    %   be used in the denominator.
+    %
+    unbiased_error_energy_per_dim = ( (norm(p)^2) * Ex_bar) / SNRteq;
+    % New effective channel:
+    H_teq = fft(b, N);
+    % New Unitary-energy SNR:
+    gn_teq = (abs(H_teq).^2) / unbiased_error_energy_per_dim;
+else
+    % When MMSE-TEQ is not used, at least a bias should be generically
+    % defined:
+    bias = 1;
+end
+
 %% Water filling
 
 fprintf('\n--------------------- Water Filling -------------------- \n\n');
 
 % SNR for unitary energy transmit symbol:
-gn = (abs(H).^2) / N0_over_2;
+switch (equalizer)
+    case 1 % MMSE-TEQ
+        gn = gn_teq;
+    otherwise
+        gn = (abs(H).^2) / N0_over_2;
+end
 
+% Water-filling:
 [bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*(N/nDim), N, gap);
 dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
 unusedTones = setdiff(1:N, usedTones);
@@ -99,8 +141,11 @@ end
 
 fprintf('Average Pe:\t                 %g\n', mean(Pe_n));
 
-fprintf('\nNote:\n');
-fprintf('This Pe considers that the fractional bit load is rounded down');
+fprintf('\nNote(s):\n');
+fprintf('1) This Pe considers the fractional bit load is rounded down \n');
+if (equalizer == 1)
+    fprintf('2) Channel shaping function b was used for water-filling.\n');
+end
 fprintf('\n');
 
 %% Discrete-loading: Levin Campello Rate Adaptive
@@ -172,7 +217,7 @@ BitError = comm.ErrorRate;
 % Normalized FFT Matrix
 Q = (1/sqrt(N))*fft(eye(N));
 
-%% Discrete-loading of bits and energy
+%% Energy loading (constellation scaling factors)
 
 % Modulation order on each subchannel
 if (loading == 0)
@@ -317,10 +362,35 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
     % would be the noise power N0_over_2 * 2W. However, the catch here is
     % that y does not represent the samples
 
+    %% Time-domain Equalization
+    switch (equalizer)
+        case 1
+            z = conv(w, y);
+        otherwise
+            z = y;
+    end
+
     %% Synchronization
+    % Note: synchronization introduces a phase shift that should be taken
+    % into account in the FEQ.
+
+    switch (equalizer)
+        case 1
+            % MMSE-TEQ Chosen Delay
+            n0 = delta * L;
+            % In the case of the MMSE-TEQ, the cursor considers the TEQ
+            % delay. However, since the FEQ considers the channel shaping
+            % function "b", the phase shift in the FEQ should not be due to
+            % the same cursor "n0".
+            phaseShift = exp(1j*2*pi*(0/N)*(0:N-1));
+        otherwise
+            % Assume no delay
+            n0 = 0;
+            phaseShift = exp(1j*2*pi*(n0/N)*(0:N-1));
+    end
 
     nRxSamples = (N+nu)*nSymbols;
-    y_sync     = y(1:nRxSamples);
+    y_sync     = z((n0 + 1):(n0 + nRxSamples));
 
     %% Slicing
 
@@ -336,8 +406,17 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
 
     %% FEQ - One-tap Frequency Equalizer
 
-    H_freq = fft(p, N);
-    FEQ    = 1 ./ H_freq;
+    switch (equalizer)
+        case 1
+            H_freq = fft(b, N);
+
+        otherwise
+            H_freq = fft(p, N);
+    end
+
+    % Include the unbiasing factor into the FEQ. Note bias=1 when MMSE-TEQ
+    % is not used.
+    FEQ    = (1/bias) * (1 ./ (H_freq .* phaseShift));
 
     Z = diag(FEQ) * Y;
 
