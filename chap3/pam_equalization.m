@@ -19,7 +19,7 @@
 %
 
 clearvars, close all;
-clc
+addpath('../lib/')
 
 % Parameters
 N           =   1;      % Dimensions per symbol

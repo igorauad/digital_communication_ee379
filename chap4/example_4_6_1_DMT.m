@@ -5,8 +5,8 @@
 % which avoids the need for knowing the channel impulse response in order
 % to design transmit/receive basis functions.
 
-clear all
-clc
+clearvars, clc
+addpath('../lib/')
 
 % Parameters
 N       = 8;       % FFT size and the number of subchannels

@@ -1,5 +1,6 @@
 %% DMT Equalization Analysis through Monte-Carlo Simulation
 clearvars, clc
+addpath('../lib/')
 
 % Parameters
 debug       = 0;       % Enable debug information
