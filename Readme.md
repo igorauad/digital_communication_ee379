@@ -1,3 +1,3 @@
-# Equalization
+# Digital Communications
 
-This repo will be used to maintain MATLAB-based simulations of equalization schemes applied to basic digital communications systems.
+This repo will be used to maintain MATLAB-based simulations of digital communications principles explained in the Stanford EE379 course.
