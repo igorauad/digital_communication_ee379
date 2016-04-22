@@ -3,8 +3,8 @@ clearvars, clc
 
 N     = 1;           % dimensions
 b     = 1:10;        % bits
-b_bar = b / N;       % bits per dimension
-M     = 2.^b         % modulation order
+b_bar = b / N        % bits per dimension
+M     = 2.^b;        % modulation order
 rho   = 2*b_bar;     % Spectral efficiency
 
 % Define the target modulation:
@@ -26,7 +26,7 @@ if (strcmp(search, 'Gap'))
     % Discover the SNR required to achieve the target Pe for each spectral
     % effiency. Recall that, for PAM, the NNUB is exact and given by:
     %
-    %   Pe_bar = 2*(1 - 1/M) qfunc( sqrt( 3 * SNRnorm ) ),
+    %   Pe_bar = 2*(1 - 1/(2.^b_bar)) qfunc( sqrt( 3 * SNRnorm ) ),
     %
     % where the normalized SNR (SNRnorm), a.k.a. the gap to capacity, is
     % given by:
@@ -38,7 +38,7 @@ if (strcmp(search, 'Gap'))
     % the NNUB Pe per dimension is different and given by:
     %
     %   Pe_bar = 2*(1 - 1/(sqrt(2)*M))*qfunc(sqrt((3/(31/32)) * SNRnorm)).
-
+    %
     % Two steps are required:
     %
     % - First discover the required argument for the Q function.
@@ -49,12 +49,13 @@ if (strcmp(search, 'Gap'))
     switch (encoder_type)
         case {0,1}
             % PAM and SQ-QAM
-            arg_qfunc = qfuncinv(Pe_bar ./ ( 2*( 1 - (1./M) )) );
+            arg_qfunc = qfuncinv(Pe_bar ./ ( 2*( 1 - (1./(2.^b_bar)))) );
             % The argument is equivalent to sqrt( 3 * SNRnorm )
             SNRnorm = (arg_qfunc.^2) / 3;
         case 2
             % Cross-QAM
-            arg_qfunc = qfuncinv(Pe_bar ./ (2*( 1 - (1./(sqrt(2)*M)))));
+            arg_qfunc = qfuncinv(Pe_bar ./ ...
+                (2*( 1 - (1./(2.^(b_bar + 0.5))))));
             % The argument is equivalent to sqrt((3/(31/32)) * SNRnorm )
             SNRnorm = (arg_qfunc.^2) / (3/(31/32));
     end
@@ -73,9 +74,10 @@ elseif (strcmp(search, 'Pe'))
 
     switch (encoder_type)
         case {0,1}
-            Pe_bar = 2 * (1 - (1./M)) * qfunc( sqrt( 3 * gap ) )
+            Pe_bar = 2 * (1 - (1./(2.^b_bar))) * qfunc( sqrt( 3 * gap ) )
         case 2
-            Pe_bar = 2*(1 - 1./(sqrt(2)*M))*qfunc(sqrt((3/(31/32)) * gap))
+            Pe_bar = 2*(1 - (1./(sqrt(2)*M))) * ...
+                qfunc(sqrt((3/(31/32)) * gap))
     end
 
 else
