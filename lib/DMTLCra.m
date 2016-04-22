@@ -1,4 +1,4 @@
-function [En,bn] = DMTLCra(gn,Ex_bar,N,gap)
+function [En,bn] = DMTLCra(gn,Ex_bar,N,gap_db)
 %
 % EE379C 2008 Spring
 %
@@ -8,7 +8,7 @@ function [En,bn] = DMTLCra(gn,Ex_bar,N,gap)
 % gn is the unitary-energy SNRs
 % Ex_bar is the normalized energy
 % N is the total number of real dimensions
-% gap is the gap in dB
+% gap_db is the gap in dB
 %
 % Outputs
 % En is the vector energy distribution (PAM or QAM) per subchannel
@@ -17,7 +17,7 @@ function [En,bn] = DMTLCra(gn,Ex_bar,N,gap)
 % The first and last bins are PAM; the rest are QAM.
 % dB into normal scale
 
-gap = 10^(gap/10);
+gap = 10^(gap_db/10);
 
 % initialization
 En = zeros(1,N/2+1);
