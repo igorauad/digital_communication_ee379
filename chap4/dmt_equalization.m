@@ -17,6 +17,11 @@ delta_f     = 1e3;     % Subchannel bandwidth
 L           = 1;       % Oversampling Ratio
 nSymbols    = 100;     % Number of transmit symbols
 loading     = 1;       % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
+equalizer   = 0;       % 0 - None; 1) MMSE-TEQ
+% MMSE-TEQ Parameters
+nTaps       = 11;      % Number of taps
+filtertype  = 1;       % 1 = FIR; 0 = IIR
+delta       = 10;      % Delay
 % Monte-Carlo Parameters
 maxNumErrs  = 30;
 maxNumBits  = 1e12;
