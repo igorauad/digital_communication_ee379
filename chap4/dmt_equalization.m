@@ -109,6 +109,8 @@ end
 [bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*(N/nDim), N, gap);
 dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
 unusedTones = setdiff(1:N, usedTones);
+% Number of used tones, according to the water-filling:
+N_star = length(usedTones);
 
 % Number of bits per dimension
 b_bar = (1/nDim)*(sum(bn_bar));
@@ -116,38 +118,19 @@ fprintf('\nb_bar:                  \t %g bits/dimension\n', b_bar)
 % For gap=0 and N->+infty, this should be the channel capacity per real
 % dimension.
 
-% Corresponding SNR:
+% Corresponding multi-channel SNR:
 SNRdmt = 10*log10(gap*(2^(2*b_bar)-1));
-
-% Number of used tones, according to the water-filling:
-N_star = length(usedTones);
+% SNR at each tone, per dimension:
+SNR_n = En_bar .* gn;
+% Normalized SNR on each tone, per dimension (should approach the target
+% gap):
+SNR_n_norm = SNR_n ./ (2.^(2*bn_bar) - 1);
 
 fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n', SNRdmt)
 
-% Average probability of error
-SNR_n = En_bar .* gn; % SNR per real dimension
-Pe_n = zeros(N/2 + 1, 1);
-for k = 1:(N/2 + 1)
-    M = 2^(floor(bn_bar(k) * dim_per_subchannel(k))); % Constellation size
-    if (dim_per_subchannel(k) == 2)
-        % QAM Nearest-neighbors Union Bound
-        Pe_n(k) = 4 * (1 - 1/sqrt(M)) * ...
-            qfunc(sqrt(3*SNR_n(k) / (M - 1)));
-    else
-        % PAM Nearest-neighbors Union Bound
-        Pe_n(k) = 2 * (1 - 1/M) * ...
-            qfunc(sqrt(3*SNR_n(k) / (M^2 - 1)));
-    end
-end
-
-fprintf('Average Pe:\t                 %g\n', mean(Pe_n));
-
-fprintf('\nNote(s):\n');
-fprintf('1) This Pe considers the fractional bit load is rounded down \n');
 if (equalizer == 1)
-    fprintf('2) Channel shaping function b was used for water-filling.\n');
+    fprintf('Note: channel shaping function b used for water-filling.\n');
 end
-fprintf('\n');
 
 %% Discrete-loading: Levin Campello Rate Adaptive
 
@@ -160,16 +143,14 @@ fprintf('\n------------------ Discrete Loading -------------------- \n\n');
     N, gap_db);
 
 % Energy per real dimension
-En_bar_discrete = [En_discrete, flipud(conj(En_discrete(2:N/2)))] ...
+En_bar_lc = [En_discrete, flipud(conj(En_discrete(2:N/2)))] ...
     ./ dim_per_subchannel;
+% Bits per subchannel per dimension
+bn_bar_lc = [bn_discrete(1:N/2+1), flipud(bn_discrete(2:N/2))] ./ ...
+    dim_per_subchannel;
 
 % Total bits per dimension:
 b_bar_discrete = 1/nDim*(sum(bn_discrete));
-% SNRdmt from the number of bits per dimension
-SNRdmt_discrete = 10*log10(gap*(2^(2*b_bar_discrete)-1));
-
-fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
-    SNRdmt_discrete);
 
 % Compare water-filling and discrete-loading
 if (debug && loading)
@@ -182,23 +163,58 @@ if (debug && loading)
     set(gca,'XLim',[0 N/2+1]);
 end
 
-% Average probability of error
-SNR_n = En_bar_discrete .* gn; % SNR per real dimension
-Pe_n = zeros(N/2 + 1, 1);
+% SNRdmt from the number of bits per dimension
+SNRdmt_discrete = 10*log10(gap*(2^(2*b_bar_discrete)-1));
+% SNR on each tone, per dimension:
+SNR_n_lc      = En_bar_lc .* gn; % SNR per real dimension
+% Normalized SNR on each tone, per dimension (should approach the gap)
+SNR_n_norm_lc = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
+
+fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
+    SNRdmt_discrete);
+
+%% Analysis of the Error Probability per dimension
+% Comparison between the water-filling and the discrete loading
+
+% Preallocate
+Pe_bar_n = zeros(N/2 + 1, 1);
+Pe_bar_n_lc   = zeros(N/2 + 1, 1);
+
 for k = 1:(N/2 + 1)
-    M = 2^(bn_discrete(k)); % Constellation size
     if (dim_per_subchannel(k) == 2)
-        % QAM Nearest-neighbors Union Bound
-        Pe_n(k) = 4 * (1 - 1/sqrt(M)) * ...
-            qfunc(sqrt(3*SNR_n(k) / (M - 1)));
+        % QAM Nearest-neighbors Union Bound assuming QAM-Cross
+        % Constellation
+
+        % Water-filling (with fractional load):
+        Pe_bar_n(k) = 2 * (1 - 1/(2^(bn_bar(k) + 0.5))) * ...
+            qfunc(sqrt( (3/(31/32))*SNR_n_norm(k) ));
+        % Levin-Campello (LC):
+        Pe_bar_n_lc(k) = 2 * (1 - 1/(2^(bn_bar_lc(k) + 0.5))) * ...
+            qfunc(sqrt( (3/(31/32))*SNR_n_norm_lc(k) ));
     else
         % PAM Nearest-neighbors Union Bound
-        Pe_n(k) = 2 * (1 - 1/M) * ...
-            qfunc(sqrt(3*SNR_n(k) / (M^2 - 1)));
+
+        % Water-filling (with fractional load):
+        Pe_bar_n(k) = 2 * (1 - 1/(2^bn_bar(k))) * ...
+            qfunc(sqrt( 3*SNR_n_norm(k)) );
+        % Levin-Campello (LC):
+        Pe_bar_n_lc(k) = 2 * (1 - 1/(2^bn_bar_lc(k))) * ...
+            qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
     end
 end
 
-fprintf('Average Pe:\t                 %g\n', mean(Pe_n));
+if (debug)
+    figure
+    plot(Pe_bar_n)
+    hold on
+    plot(Pe_bar_n_lc, 'r')
+    legend('Water-filling', 'Levin-Campello')
+    title('Pe per dimension on each subchannel')
+end
+
+fprintf('\nAverage Pe per dimension:\n');
+fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n));
+fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc));
 
 %% Monte-carlo
 
@@ -231,18 +247,23 @@ end
 
 % Scale factors for each subchannel n to achieve the En average energy
 for k = 1:(N/2 + 1)
-    if (En_bar(k) > 0 & modOrder(k) > 1)
+    if (En_bar(k) > 0 && modOrder(k) > 1)
         if (dim_per_subchannel(k) == 2)
+            % The last argument should be the Energy per 2 dimensions.
+            % However, since Hermitian symmetry will double the energy, it
+            % is chosen as the energy per real dimension.
             if (loading == 0)
                 Scale_n(k) = modnorm(qammod(0:(modOrder(k)-1),...
                     modOrder(k)),...
                     'avpow', En_bar(k));
             else
+
                 Scale_n(k) = modnorm(qammod(0:(modOrder(k)-1),...
                     modOrder(k)),...
                     'avpow', 0.5 * En_discrete(k));
             end
         else
+            % The last argument should be the Energy per real dimension
             if (loading == 0)
                 Scale_n(k) = modnorm(pammod(0:(modOrder(k)-1),...
                     modOrder(k)),...
@@ -439,13 +460,13 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
     numErrs = results(2);
     numBits = results(3);
 
-    fprintf('SER:\t%g\t', results(1));
+    fprintf('Pe_bar:\t%g\t', results(1)/N);
     fprintf('nErrors:\t%g\t', results(2));
     fprintf('nSymbols:\t%g\n', results(3));
 end
 
 %% Results
 fprintf('\n----------------------- Results ------------------------ \n\n');
-fprintf('SER:          \t %g\n', results(1));
+fprintf('Pe_bar:       \t %g\n', results(1)/N);
 fprintf('Total errors: \t %g\n', results(2));
 fprintf('Total symbols:\t %g\n', results(3));
