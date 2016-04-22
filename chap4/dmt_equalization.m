@@ -4,6 +4,7 @@ addpath('../lib/')
 
 % Parameters
 debug       = 0;       % Enable debug information
+debug_tone  = 16;      % A specific tone to debug when debug is enabled
 L           = 1;       % Oversampling (support only for integer values)
 W           = 1e3;     % Nominal bandwith (Hz)
 Px          = 1e-3;    % Transmit Power (W)
@@ -279,7 +280,11 @@ end
 
 %% Iterative Transmissions
 
+iTransmission = 0;
+
 while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
+    iTransmission = iTransmission + 1;
+
     % Random Symbol generation
     for k = 1:(N/2 + 1)
         tx_symbols(k, :) = randi(modOrder(k), 1, nSymbols) - 1;
@@ -450,6 +455,14 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
         if (dim_per_subchannel(k) == 2)
             rx_symbols(k, :) = qamdemod((1/Scale_n(k)) * Z(k, :), ...
                 modOrder(k));
+            if (debug && k == debug_tone && iTransmission == 1)
+                figure
+                plot(Z(k, :), 'o')
+                hold on
+                plot(X(k, :), 'ro', 'MarkerSize', 10, 'linewidth', 2)
+                legend('Eq', 'Tx')
+                title(sprintf('Tone: %d', debug_tone));
+            end
         else
             rx_symbols(k, :) = pamdemod((1/Scale_n(k)) * Z(k, :), ...
                 modOrder(k));
