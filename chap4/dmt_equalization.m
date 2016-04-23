@@ -72,7 +72,7 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
        error('MMSE-TEQ is unecessary. CP is already sufficient!');
     end
 
-    [P, w, b, SNRteq, bias] = ...
+    [w, b, SNRteq, bias] = ...
         teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
 
     fprintf('New SNRmfb (TEQ):         \t %g dB\n', 10*log10(SNRteq))

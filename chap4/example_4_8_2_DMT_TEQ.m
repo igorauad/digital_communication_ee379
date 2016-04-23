@@ -132,7 +132,7 @@ delta      = 10;
 fprintf('---------------------------------------\n');
 fprintf('DMT preceded by a TEQ\n\n');
 
-[P,w,b,SNRteq,bias] = ...
+[w,b,SNRteq,bias] = ...
     teq(p, nTaps, nu, delta, sigma_n_sq, Ex_bar, filtertype);
 
 fprintf('New SNRmfb (TEQ):         \t %g dB\n\n', 10*log10(SNRteq))
