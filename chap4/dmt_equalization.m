@@ -19,9 +19,8 @@ nSymbols    = 100;     % Number of transmit symbols
 loading     = 1;       % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
 equalizer   = 0;       % 0 - None; 1) MMSE-TEQ
 % MMSE-TEQ Parameters
-nTaps       = 11;      % Number of taps
+maxNumTaps  = 20;      % Maixmum allowed feed-forward TEQ length
 filtertype  = 1;       % 1 = FIR; 0 = IIR
-delta       = 10;      % Delay
 % Monte-Carlo Parameters
 maxNumErrs   = 2e3;
 maxNumDmtSym = 1e12;
@@ -72,10 +71,14 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
        error('MMSE-TEQ is unecessary. CP is already sufficient!');
     end
 
+    [nTaps, delta] = optimizeTeq(p, nu, N0_over_2, Ex_bar, maxNumTaps);
+    fprintf('Optimal L <= %d:\t %d\n', maxNumTaps, nTaps);
+    fprintf('Optimal Delay:  \t %d\n', delta);
+
     [w, b, SNRteq, bias] = ...
         teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
 
-    fprintf('New SNRmfb (TEQ):         \t %g dB\n', 10*log10(SNRteq))
+    fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
 
     % Now compute the water-filling solution for the target pulse response
     %
