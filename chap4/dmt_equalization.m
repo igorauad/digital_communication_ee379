@@ -23,8 +23,8 @@ nTaps       = 11;      % Number of taps
 filtertype  = 1;       % 1 = FIR; 0 = IIR
 delta       = 10;      % Delay
 % Monte-Carlo Parameters
-maxNumErrs  = 30;
-maxNumBits  = 1e12;
+maxNumErrs   = 2e3;
+maxNumDmtSym = 1e12;
 
 % Derived computations:
 Fs        = N * delta_f;
@@ -230,8 +230,9 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 X          = zeros(N, nSymbols);
 tx_symbols = zeros(N/2 + 1, nSymbols);
 Scale_n    = zeros(N/2 + 1, nSymbols); % Constellation scaling factors
+sym_err_n  = zeros(N/2 + 1, 1);
 
-numErrs = 0; numBits = 0; results=zeros(3,1);
+numErrs = 0; numDmtSym = 0; results=zeros(3,1);
 
 % Sys Objects
 BitError = comm.ErrorRate;
@@ -287,7 +288,7 @@ end
 
 iTransmission = 0;
 
-while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
+while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     iTransmission = iTransmission + 1;
 
     % Random Symbol generation
@@ -474,17 +475,39 @@ while ((numErrs < maxNumErrs) && (numBits < maxNumBits))
         end
     end
 
-    results = BitError.step(tx_symbols(:), rx_symbols(:)); % Update BER
-    numErrs = results(2);
-    numBits = results(3);
+    % Symbol error count
+    sym_err_n = sym_err_n + symerr(tx_symbols, rx_symbols, 'row-wise');
+    % Symbol error rate per subchannel
+    ser_n     = sym_err_n / (iTransmission * nSymbols);
+    % Per-dimensional symbol error rate per subchannel
+    ser_n_bar = ser_n ./ dim_per_subchannel(1:N/2+1).';
 
-    fprintf('Pe_bar:\t%g\t', results(1)/N);
-    fprintf('nErrors:\t%g\t', results(2));
-    fprintf('nSymbols:\t%g\n', results(3));
+    % Preliminary results
+    numErrs   = sum(sym_err_n);
+    numDmtSym = iTransmission * nSymbols;
+
+    fprintf('Pe_bar:\t%g\t', mean(ser_n_bar));
+    fprintf('nErrors:\t%g\t', numErrs);
+    fprintf('nDMTSymbols:\t%g\n', numDmtSym);
+
+
 end
 
 %% Results
 fprintf('\n----------------------- Results ------------------------ \n\n');
-fprintf('Pe_bar:       \t %g\n', results(1)/N);
+fprintf('Pe_bar:       \t %g\n', mean(ser_n_bar));
 fprintf('Total errors: \t %g\n', results(2));
 fprintf('Total symbols:\t %g\n', results(3));
+
+if (debug)
+    stem(ser_n_bar)
+    hold on
+    stem(Pe_bar_n, 'g')
+    hold on
+    stem(Pe_bar_n_lc, 'r')
+    title('Pe per dimension')
+    xlabel('Subchannel (n)')
+    ylabel('Pe_{bar}')
+    legend('Measured','WF','LC')
+    set(gca,'XLim',[1 N/2+1]);
+end
