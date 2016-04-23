@@ -92,6 +92,12 @@ if filtertype==1 % FIR
     % Bias removed by multiplication of the equalizer output by 1/alpha:
     unbiased_error_energy = biased_error_energy / alpha^2;
 
+    % Protect form complex error energies that may be caused by complex
+    % eigenvectors:
+    if (imag(unbiased_error_energy) < 1e-14)
+        unbiased_error_energy = real(unbiased_error_energy);
+    end
+
     % Finally, the SNRmfb can be computed, according to the definition of
     % (4.300):
     SNRmfb = norm_p^2*Ex_bar / unbiased_error_energy;
