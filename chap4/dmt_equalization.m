@@ -13,23 +13,23 @@ debug_tx_energy     = 0;  % Debug transmit energy
 
 % Parameters
 L           = 1;       % Oversampling (support only for integer values)
-W           = 1e3;     % Nominal bandwith (Hz)
+W           = 1e5;     % Nominal bandwith (Hz)
 Px          = 1e-3;    % Transmit Power (W)
-N0_over_2   = 1e-13;   % Noise PSD (W/Hz/dim) and variance per dimension
-N           = 1024;    % FFT size and the number of used real dimensions
-nu          = 24;      % Prefix
+N0_over_2   = 1e-10;   % Noise PSD (W/Hz/dim) and variance per dimension
+N           = 128;     % FFT size and the number of used real dimensions
+nu          = 8;       % Cyclic Prefix Length
 nDim        = N + nu;  % Total number of real dimensions per DMT symbol
 gap_db      = 8.8;     % SNR gap to capacity (dB)
 delta_f     = 1e3;     % Subchannel bandwidth
 L           = 1;       % Oversampling Ratio
-nSymbols    = 100;     % Number of transmit symbols
+nSymbols    = 1000;    % Number of DMT symbols per transmission iteration
 loading     = 1;       % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
 equalizer   = 0;       % 0 - None; 1) MMSE-TEQ
 % MMSE-TEQ Parameters
 maxNumTaps  = 20;      % Maixmum allowed feed-forward TEQ length
 filtertype  = 1;       % 1 = FIR; 0 = IIR
 % Monte-Carlo Parameters
-maxNumErrs   = 2e3;
+maxNumErrs   = 100;
 maxNumDmtSym = 1e12;
 
 % Derived computations:
