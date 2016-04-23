@@ -121,6 +121,9 @@ unusedTones = setdiff(1:N, usedTones);
 % Number of used tones, according to the water-filling:
 N_star = length(usedTones);
 
+% Bits per subchannel
+bn = bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1);
+
 % Number of bits per dimension
 b_bar = (1/nDim)*(sum(bn_bar));
 fprintf('\nb_bar:                  \t %g bits/dimension\n', b_bar)
@@ -192,14 +195,30 @@ Pe_bar_n_lc   = zeros(N/2 + 1, 1);
 for k = 1:(N/2 + 1)
     if (dim_per_subchannel(k) == 2)
         % QAM Nearest-neighbors Union Bound assuming QAM-Cross
-        % Constellation
+        % constellation for odd loads, except for b==3.
 
         % Water-filling (with fractional load):
-        Pe_bar_n(k) = 2 * (1 - 1/(2^(bn_bar(k) + 0.5))) * ...
-            qfunc(sqrt( (3/(31/32))*SNR_n_norm(k) ));
+        if ((mod(bn(k),2) ~= 0) && bn(k) ~= 3)
+            % QAM-Cross
+            Pe_bar_n(k) = 2 * (1 - 1/(2^(bn_bar(k) + 0.5))) * ...
+                qfunc(sqrt( (3/(31/32))*SNR_n_norm(k) ));
+        else
+            % QAM-SQ
+            Pe_bar_n(k) = 2 * (1 - 1/(2^bn_bar(k))) * ...
+                qfunc(sqrt( 3*SNR_n_norm(k)) );
+        end
+
         % Levin-Campello (LC):
-        Pe_bar_n_lc(k) = 2 * (1 - 1/(2^(bn_bar_lc(k) + 0.5))) * ...
-            qfunc(sqrt( (3/(31/32))*SNR_n_norm_lc(k) ));
+        if ((mod(bn_discrete(k),2) ~= 0) && bn_discrete(k) ~= 3)
+            % QAM-Cross
+            Pe_bar_n_lc(k) = 2 * (1 - 1/(2^(bn_bar_lc(k) + 0.5))) * ...
+                qfunc(sqrt( (3/(31/32))*SNR_n_norm_lc(k) ));
+        else
+            % QAM-SQ
+            Pe_bar_n_lc(k) = 2 * (1 - 1/(2^bn_bar_lc(k))) * ...
+                qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
+        end
+
     else
         % PAM Nearest-neighbors Union Bound
 
@@ -250,7 +269,7 @@ Q = (1/sqrt(N))*fft(eye(N));
 % Modulation order on each subchannel
 if (loading == 0)
     % Non-optimal discrete loading
-    modOrder = 2.^floor(bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1));
+    modOrder = 2.^floor(bn);
 else
     modOrder = 2.^bn_discrete;
 end
