@@ -2,9 +2,16 @@
 clearvars, clc
 addpath('../lib/')
 
+% Debug levels
+debug               = 1;  % Enable debug information
+debug_constellation = 0;  % Debug a certain subchannel constellation
+debug_tone          = 16; % Tone whose constellation is debugged
+debug_Pe            = 1;  % Debug error probabilities
+debug_loading       = 0;  % Debug bit loading
+debug_tx_energy     = 0;  % Debug transmit energy
+
+
 % Parameters
-debug       = 0;       % Enable debug information
-debug_tone  = 16;      % A specific tone to debug when debug is enabled
 L           = 1;       % Oversampling (support only for integer values)
 W           = 1e3;     % Nominal bandwith (Hz)
 Px          = 1e-3;    % Transmit Power (W)
@@ -165,14 +172,16 @@ bn_bar_lc = [bn_discrete(1:N/2+1), flipud(bn_discrete(2:N/2))] ./ ...
 b_bar_discrete = 1/nDim*(sum(bn_discrete));
 
 % Compare water-filling and discrete-loading
-if (debug && loading)
-    stem(bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1))
+if (debug && debug_loading && loading)
+    figure
+    plot(bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1), ...
+        'linewidth', 1.1)
     hold on
     stem(bn_discrete, 'g')
     legend('Water-filling', 'Discrete Loading')
     xlabel('Subchannel');
     ylabel('Bits');
-    set(gca,'XLim',[0 N/2+1]);
+    set(gca,'XLim',[1 N/2+1]);
 end
 
 % SNRdmt from the number of bits per dimension
@@ -231,13 +240,14 @@ for k = 1:(N/2 + 1)
     end
 end
 
-if (debug)
+if (debug && debug_Pe)
     figure
-    plot(Pe_bar_n)
+    plot(Pe_bar_n, 'linewidth', 1.1)
     hold on
-    plot(Pe_bar_n_lc, 'r')
+    stem(Pe_bar_n_lc, 'r')
     legend('Water-filling', 'Levin-Campello')
     title('Pe per dimension on each subchannel')
+    set(gca,'XLim',[1 N/2+1]);
 end
 
 fprintf('\nAverage Pe per dimension:\n');
@@ -342,7 +352,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     u = x_ext(:);
 
-    if (debug)
+    if (debug && debug_tx_energy)
         % Note: "u" should become samples leaving the DAC. In that case,
         % they would repreent coefficients of the sampling theorem's sinc
         % interpolation formula, which is an orthogonal (non-normal)
@@ -483,7 +493,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         if (dim_per_subchannel(k) == 2)
             rx_symbols(k, :) = qamdemod((1/Scale_n(k)) * Z(k, :), ...
                 modOrder(k));
-            if (debug && k == debug_tone && iTransmission == 1)
+            if (debug && debug_constellation && ...
+                    k == debug_tone && iTransmission == 1)
                 figure
                 plot(Z(k, :), 'o')
                 hold on
@@ -521,7 +532,8 @@ fprintf('Pe_bar:       \t %g\n', mean(ser_n_bar));
 fprintf('Total errors: \t %g\n', results(2));
 fprintf('Total symbols:\t %g\n', results(3));
 
-if (debug)
+if (debug && debug_Pe)
+    figure
     stem(ser_n_bar)
     hold on
     stem(Pe_bar_n, 'g')
