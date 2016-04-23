@@ -34,10 +34,27 @@ if filtertype==1 % FIR
     % See (4.342)
 
     % Cross-correlation matrix:
+    % See comments in (4.343). The rxy(delta) is a function of delta, the
+    % delay. It is given by:
+    %
+    %   E[x_{k - delta} conj(x_k)]*conj(P)
+    %
+    % where k coincides with "k - delta" at some indices in the matrix,
+    % starting in the first row at column delta + 1, and following in the
+    % diagonals below. Importantly, "x_{k - delta}" is "(nu + 1) x 1" and
+    % conj(x_k) is "1 x L + length(p) - 1". The number of rows with 1's in
+    % the diagonal corresponds to the number of samples in conj(x_k) that
+    % coincide with x_{k - delta}. The maximum number of rows in this
+    % "identity" is "nu + 1", but it can be less, depending on the limit in
+    % the number of columns. Likewise, since "E[x_{k - delta} conj(x_k)]"
+    % has dimensions "(nu + 1) x (L + length(p) - 1)" and necessarily the
+    % first delta rows are zeros, the maximum number of columns in the
+    % identity is the minimum between "nu + 1" and "L + length(p) - 1 -
+    % delta". Finally, assuming delta < L and "nu + 1 <= length(p)",
+    % normally all the "nu + 1" columns will be used. Hence, the following
+    % is reasonable:
     rxy = [zeros(nu+1,delta) eye(nu+1) zeros(nu+1,L+size_p-2-nu-delta)]...
         * P' * Ex_bar;
-    % See comments in (4.343). The above is rxy(delta), namely a function
-    % of delta, the delay.
 
     % MMSE-LE error auto-correlation:
     rle = eye(nu+1)*Ex_bar - (rxy * inv(ryy) * rxy');
