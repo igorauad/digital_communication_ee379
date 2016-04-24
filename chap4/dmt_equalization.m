@@ -174,7 +174,7 @@ b_bar_discrete = 1/nDim*(sum(bn_discrete));
 % Compare water-filling and discrete-loading
 if (debug && debug_loading && loading)
     figure
-    plot(bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1), ...
+    plot(bn(1:N/2+1), ...
         'linewidth', 1.1)
     hold on
     stem(bn_discrete, 'g')
@@ -203,14 +203,17 @@ Pe_bar_n_lc   = zeros(N/2 + 1, 1);
 
 for k = 1:(N/2 + 1)
     if (dim_per_subchannel(k) == 2)
-        % QAM Nearest-neighbors Union Bound assuming QAM-Cross
-        % constellation for odd loads, except for b==3.
+        % QAM Nearest-neighbors Union Bound assuming QAM-SQ constellations
+        % for both even and odd loads. "Hybrid QAM" constellations are used
+        % as "Square" for odd loads.
 
         % Water-filling (with fractional load):
-        if ((mod(bn(k),2) ~= 0) && bn(k) ~= 3)
-            % QAM-Cross
-            Pe_bar_n(k) = 2 * (1 - 1/(2^(bn_bar(k) + 0.5))) * ...
-                qfunc(sqrt( (3/(31/32))*SNR_n_norm(k) ));
+        if ((mod(bn(k),2) ~= 0))
+            % For odd b, Hybrid QAM is used:
+            M = 2^bn(k);
+            Pe_bar_n(k) = 2*(1 - sqrt(2/M) + 1/(2*M)) * ...
+                qfunc(sqrt( 3*SNR_n_norm(k)) );
+            % Note: this is an approximation for sufficiently large M.
         else
             % QAM-SQ
             Pe_bar_n(k) = 2 * (1 - 1/(2^bn_bar(k))) * ...
@@ -218,10 +221,11 @@ for k = 1:(N/2 + 1)
         end
 
         % Levin-Campello (LC):
-        if ((mod(bn_discrete(k),2) ~= 0) && bn_discrete(k) ~= 3)
-            % QAM-Cross
-            Pe_bar_n_lc(k) = 2 * (1 - 1/(2^(bn_bar_lc(k) + 0.5))) * ...
-                qfunc(sqrt( (3/(31/32))*SNR_n_norm_lc(k) ));
+        if ((mod(bn_discrete(k),2) ~= 0))
+            % For odd b, Hybrid QAM is used:
+            M = 2^bn_discrete(k);
+            Pe_bar_n_lc(k) = 2*(1 - sqrt(2/M) + 1/(2*M)) * ...
+                qfunc(sqrt( 3*SNR_n_norm_lc(k)) );
         else
             % QAM-SQ
             Pe_bar_n_lc(k) = 2 * (1 - 1/(2^bn_bar_lc(k))) * ...
@@ -254,6 +258,87 @@ fprintf('\nAverage Pe per dimension:\n');
 fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n));
 fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc));
 
+%% Modulators
+
+% Modulation order on each subchannel
+if (loading == 0)
+    % Non-optimal discrete loading
+    modOrder = 2.^floor(bn);
+else
+    modOrder = 2.^bn_discrete;
+end
+
+tone_const_orders = unique(modOrder);
+
+%Preallocate modems
+modulator = cell(length(tone_const_orders), 1);
+demodulator = cell(length(tone_const_orders), 1);
+
+% Configure modem for each distinct bit loading:
+for i = 1:length(tone_const_orders)
+    M = tone_const_orders(i);
+    if (M == 2)
+        modulator{i} = modem.pammod('M', M, 'SymbolOrder', 'Gray');
+        demodulator{i} = modem.pamdemod('M', M, 'SymbolOrder', 'Gray');
+    else
+        if (mod(log2(M),2) ~= 0)
+            modulator{i} = modem.genqammod('Constellation', ...
+                qamHybridConstellation(M));
+            demodulator{i} = modem.genqamdemod('Constellation', ...
+                qamHybridConstellation(M));
+        else
+            modulator{i} = modem.qammod('M', M, 'SymbolOrder', 'Gray');
+            demodulator{i} = modem.qamdemod('M', M, 'SymbolOrder', 'Gray');
+        end
+    end
+end
+
+%% Look-up table for each subchannel indicating the corresponding modem
+
+modem_n = zeros(N/2 + 1, 1);
+
+for k = 1:(N/2 + 1)
+    iModem = find (tone_const_orders == modOrder(k));
+    modem_n(k) = iModem;
+end
+
+%% Energy loading (constellation scaling factors)
+
+% Preallocate
+Scale_n = zeros(N/2 + 1, nSymbols); % Constellation scaling factors
+
+% Scale factors for each subchannel n to achieve the En average energy
+for k = 1:(N/2 + 1)
+    if (En_bar(k) > 0 && modOrder(k) > 1)
+        if (dim_per_subchannel(k) == 2)
+            % The last argument should be the Energy per 2 dimensions.
+            % However, since Hermitian symmetry will double the energy, it
+            % is chosen as the energy per real dimension.
+            if (loading == 0)
+                Scale_n(k) = modnorm(...
+                    modulator{modem_n(k)}.constellation,...
+                    'avpow', En_bar(k));
+            else
+
+                Scale_n(k) = modnorm(...
+                    modulator{modem_n(k)}.constellation,...
+                    'avpow', 0.5 * En_discrete(k));
+            end
+        else
+            % The last argument should be the Energy per real dimension
+            if (loading == 0)
+                Scale_n(k) = modnorm(...
+                    modulator{modem_n(k)}.constellation,...
+                    'avpow', En_bar(k));
+            else
+                Scale_n(k) = modnorm(...
+                    modulator{modem_n(k)}.constellation,...
+                    'avpow', En_discrete(k));
+            end
+        end
+    end
+end
+
 %% Monte-carlo
 
 fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
@@ -261,7 +346,6 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 % Preallocate
 X          = zeros(N, nSymbols);
 tx_symbols = zeros(N/2 + 1, nSymbols);
-Scale_n    = zeros(N/2 + 1, nSymbols); % Constellation scaling factors
 sym_err_n  = zeros(N/2 + 1, 1);
 
 numErrs = 0; numDmtSym = 0; results=zeros(3,1);
@@ -273,48 +357,6 @@ BitError = comm.ErrorRate;
 
 % Normalized FFT Matrix
 Q = (1/sqrt(N))*fft(eye(N));
-
-%% Energy loading (constellation scaling factors)
-
-% Modulation order on each subchannel
-if (loading == 0)
-    % Non-optimal discrete loading
-    modOrder = 2.^floor(bn);
-else
-    modOrder = 2.^bn_discrete;
-end
-
-% Scale factors for each subchannel n to achieve the En average energy
-for k = 1:(N/2 + 1)
-    if (En_bar(k) > 0 && modOrder(k) > 1)
-        if (dim_per_subchannel(k) == 2)
-            % The last argument should be the Energy per 2 dimensions.
-            % However, since Hermitian symmetry will double the energy, it
-            % is chosen as the energy per real dimension.
-            if (loading == 0)
-                Scale_n(k) = modnorm(qammod(0:(modOrder(k)-1),...
-                    modOrder(k)),...
-                    'avpow', En_bar(k));
-            else
-
-                Scale_n(k) = modnorm(qammod(0:(modOrder(k)-1),...
-                    modOrder(k)),...
-                    'avpow', 0.5 * En_discrete(k));
-            end
-        else
-            % The last argument should be the Energy per real dimension
-            if (loading == 0)
-                Scale_n(k) = modnorm(pammod(0:(modOrder(k)-1),...
-                    modOrder(k)),...
-                    'avpow', En_bar(k));
-            else
-                Scale_n(k) = modnorm(pammod(0:(modOrder(k)-1),...
-                    modOrder(k)),...
-                    'avpow', En_discrete(k));
-            end
-        end
-    end
-end
 
 %% Iterative Transmissions
 
@@ -330,11 +372,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Constellation Encoding
     for k = 1:(N/2 + 1)
-        if (dim_per_subchannel(k) == 2)
-            X(k, :) = Scale_n(k) * qammod(tx_symbols(k, :), modOrder(k));
-        else
-            X(k, :) = Scale_n(k) * pammod(tx_symbols(k, :), modOrder(k));
-        end
+        X(k, :) = Scale_n(k) * ...
+            modulator{modem_n(k)}.modulate(tx_symbols(k, :));
     end
 
     % Hermitian symmetry
@@ -490,21 +529,16 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     rx_symbols = zeros(N/2+1, nSymbols);
 
     for k = 1:(N/2 + 1)
-        if (dim_per_subchannel(k) == 2)
-            rx_symbols(k, :) = qamdemod((1/Scale_n(k)) * Z(k, :), ...
-                modOrder(k));
-            if (debug && debug_constellation && ...
-                    k == debug_tone && iTransmission == 1)
-                figure
-                plot(Z(k, :), 'o')
-                hold on
-                plot(X(k, :), 'ro', 'MarkerSize', 10, 'linewidth', 2)
-                legend('Eq', 'Tx')
-                title(sprintf('Tone: %d', debug_tone));
-            end
-        else
-            rx_symbols(k, :) = pamdemod((1/Scale_n(k)) * Z(k, :), ...
-                modOrder(k));
+        rx_symbols(k, :) = demodulator{modem_n(k)}.demodulate(...
+            (1/Scale_n(k)) * Z(k, :));
+        if (debug && debug_constellation && ...
+                k == debug_tone && iTransmission == 1)
+            figure
+            plot(Z(k, :), 'o')
+            hold on
+            plot(X(k, :), 'ro', 'MarkerSize', 10, 'linewidth', 2)
+            legend('Eq', 'Tx')
+            title(sprintf('Tone: %d', debug_tone));
         end
     end
 
@@ -539,7 +573,7 @@ if (debug && debug_Pe)
     stem(Pe_bar_n, 'g')
     hold on
     stem(Pe_bar_n_lc, 'r')
-    title('Pe per dimension')
+    title('Results: Pe per dimension')
     xlabel('Subchannel (n)')
     ylabel('Pe_{bar}')
     legend('Measured','WF','LC')

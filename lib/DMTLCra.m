@@ -57,6 +57,12 @@ while(1)
         if (index ==1 || index == N/2+1)
             decision_table(index) = 4*decision_table(index);
         else
+            % From 4.121, the incremental energy is 3dB for each bit.
+            % However, note this only works when the gap for the two loads
+            % (before and after the bit increment) are the same. Thus, care
+            % must be taken for QAM, for which different gaps might be
+            % applicable if QAM-Cross is used for odd number of bits and
+            % QAM-SQ is used for even number of bits.
             decision_table(index) = 2*decision_table(index);
         end
     end
