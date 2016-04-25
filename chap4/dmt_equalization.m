@@ -572,8 +572,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             figure
             plot(Z(k, :), 'o')
             hold on
-            plot(X(k, :), 'ro', 'MarkerSize', 10, 'linewidth', 2)
-            legend('Eq', 'Tx')
+            plot(Scale_n(k) * ...
+                modulator{modem_n(k)}.modulate(0:modOrder(k) - 1),...
+                'ro', 'MarkerSize', 8, 'linewidth', 2)
+            legend('Rx', 'Tx')
             title(sprintf('Tone: %d', debug_tone));
         end
     end
