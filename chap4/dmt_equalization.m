@@ -513,11 +513,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         case 1
             % MMSE-TEQ Chosen Delay
             n0 = delta * L;
-            % In the case of the MMSE-TEQ, the cursor considers the TEQ
-            % delay. However, since the FEQ considers the channel shaping
-            % function "b", the phase shift in the FEQ should not be due to
-            % the same cursor "n0".
-            phaseShift = exp(1j*2*pi*(0/N)*(0:N-1));
+            % The cursor considers the MMSE-TEQ delay.
+            phaseShift = exp(1j*2*pi*(n0/N)*(0:N-1));
         otherwise
             % Assume no delay
             n0 = 0;
@@ -543,8 +540,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     switch (equalizer)
         case 1
-            H_freq = fft(b, N);
-
+            % When the TEQ is employed, the effective pulse response
+            % becomes:
+            p_eff = conv(p,w);
+            H_freq = fft(p_eff, N);
         otherwise
             H_freq = fft(p, N);
     end
