@@ -562,8 +562,11 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     rx_symbols = zeros(N/2+1, nSymbols);
 
     for k = 1:(N/2 + 1)
+        if (modem_n(k) > 0)
         rx_symbols(k, :) = demodulator{modem_n(k)}.demodulate(...
             (1/Scale_n(k)) * Z(k, :));
+        end
+
         if (debug && debug_constellation && ...
                 k == debug_tone && iTransmission == 1)
             figure
