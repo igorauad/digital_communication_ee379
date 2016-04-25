@@ -13,6 +13,24 @@ function qamConst_o = qamHybridConstellation(M)
 %   where d in this case is the original distance for the SQ-QAM (d=2 on
 %   MATLAB) constellation of b+1 bits per symbol (not the minimum distance
 %   in the Hybrid QAM constellation, which is sqrt(2)*d.
+%   The average energy for the Hybrid QAM can be rewritten as:
+%       Ex = d^2 * ((2*M - 1)/6),
+%   and since d = dmin/sqrt(2), it is equivalently:
+%       Ex = dmin^2 * ((2*M - 1)/12).
+%   Therefore, the minimum distance is given by:
+%       dmin = sqrt( (12 * Ex)/(2*M - 1) )
+%            = sqrt( (24 * Ex_bar)/(2*M - 1) )
+%   Then, the Q function argument "dmin/2*sigma" is equivalent to:
+%       (1/2) * sqrt( (24 * Ex_bar)/(2*M - 1) ) / sigma
+%       = sqrt( (6 * Ex_bar)/ ((2*M - 1)*sigma^2) )
+%       = sqrt( (6 * SNR) / (2*M - 1))
+%   Finally, considering the normalized SNR to be:
+%       SNRnorm = SNR / (M - 1)
+%    the Q-function argument is only aproximately sqrt(3*SNRnorm) for large
+%    M, when the "-1" term disapears. This reveals that the gap for hybrid
+%    and square QAM is approximately equal for large M. However, note that
+%    the average number of nearest neighbors is different, so slightly
+%    different Pe's are obtained, as explained in the sequel.
 %
 %       The probability of error is also different. Consider three
 %   possibilities in terms of nearest neighbors: the corner points, which
@@ -43,11 +61,6 @@ function qamConst_o = qamHybridConstellation(M)
 %   higher than the one for SQ).
 %
 %
-
-
-if M<4
-    error('Number M of symbols must be >= 4');
-end
 
 b = log2(M);
 
