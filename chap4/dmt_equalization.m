@@ -189,14 +189,29 @@ if (debug && debug_loading && loading)
 end
 
 % SNRdmt from the number of bits per dimension
-SNRdmt_discrete = 10*log10(gap*(2^(2*b_bar_discrete)-1));
+SNRdmt_discrete = gap*(2^(2*b_bar_discrete)-1);
+SNRdmt_discrete_db = 10*log10(SNRdmt_discrete);
 % SNR on each tone, per dimension:
 SNR_n_lc      = En_bar_lc .* gn; % SNR per real dimension
 % Normalized SNR on each tone, per dimension (should approach the gap)
 SNR_n_norm_lc = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
 
+% Bit rate
+Rb = sum(bn_discrete) * Fs/(N + nu);
+% Capacity per real dimension
+cn = 0.5 * log2(1 + SNR_n_lc);
+% Multi-channel capacity, per dimension:
+c = sum(cn) / nDim;
+% Note #1: for the capacity computation, all real dimensions are
+% considered, including the overhead. See the example of (4.208)
+% Note #2: the actual capacity is only obtained for N -> infty, so the
+% above is only an approximation.
+
+fprintf('b_bar:                    \t %g bits/dimension', b_bar_discrete)
+fprintf('\ncapacity:               \t %g bits/dimension', c)
+fprintf('\nBit rate:               \t %g mbps\n', Rb/1e6);
 fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
-    SNRdmt_discrete);
+    SNRdmt_discrete_db);
 
 %% Analysis of the Error Probability per dimension
 % Comparison between the water-filling and the discrete loading
