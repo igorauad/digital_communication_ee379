@@ -278,29 +278,35 @@ else
     modOrder = 2.^bn_discrete;
 end
 
-tone_const_orders = unique(modOrder);
+oneDimModOrders = [modOrder(1), modOrder(N/2 + 1)];
+twoDimModOrders = modOrder(2:N/2);
+oneDim_const_orders = unique(oneDimModOrders(oneDimModOrders~=1));
+twoDim_const_orders = unique(twoDimModOrders(twoDimModOrders~=1));
 
 %Preallocate modems
-modulator = cell(length(tone_const_orders), 1);
-demodulator = cell(length(tone_const_orders), 1);
+modulator = cell(length(twoDim_const_orders), 1);
+demodulator = cell(length(twoDim_const_orders), 1);
 
-% Configure modem for each distinct bit loading:
-for i = 1:length(tone_const_orders)
-    M = tone_const_orders(i);
-    if (M == 2)
-        modulator{i} = modem.pammod('M', M, 'SymbolOrder', 'Gray');
-        demodulator{i} = modem.pamdemod('M', M, 'SymbolOrder', 'Gray');
+% Configure 2-dimensional modems for each distinct bit loading:
+for i = 1:length(twoDim_const_orders)
+    M = twoDim_const_orders(i);
+
+    if (mod(log2(M),2) ~= 0)
+        modulator{i} = modem.genqammod('Constellation', ...
+            qamHybridConstellation(M));
+        demodulator{i} = modem.genqamdemod('Constellation', ...
+            qamHybridConstellation(M));
     else
-        if (mod(log2(M),2) ~= 0)
-            modulator{i} = modem.genqammod('Constellation', ...
-                qamHybridConstellation(M));
-            demodulator{i} = modem.genqamdemod('Constellation', ...
-                qamHybridConstellation(M));
-        else
-            modulator{i} = modem.qammod('M', M, 'SymbolOrder', 'Gray');
-            demodulator{i} = modem.qamdemod('M', M, 'SymbolOrder', 'Gray');
-        end
+        modulator{i} = modem.qammod('M', M, 'SymbolOrder', 'Gray');
+        demodulator{i} = modem.qamdemod('M', M, 'SymbolOrder', 'Gray');
     end
+end
+
+for l = 1:length(oneDim_const_orders)
+    i = i + 1;
+    M = oneDim_const_orders(l);
+    modulator{i} = modem.pammod('M', M, 'SymbolOrder', 'Gray');
+    demodulator{i} = modem.pamdemod('M', M, 'SymbolOrder', 'Gray');
 end
 
 %% Look-up table for each subchannel indicating the corresponding modem
@@ -308,11 +314,24 @@ end
 modem_n = zeros(N/2 + 1, 1);
 
 for k = 1:(N/2 + 1)
-    iModem = find (tone_const_orders == modOrder(k));
-    modem_n(k) = iModem;
+    if (dim_per_subchannel(k) == 2)
+        iModem = find (twoDim_const_orders == modOrder(k));
+        if (iModem)
+            modem_n(k) = iModem;
+        end
+    else
+        iModem = find (oneDim_const_orders == modOrder(k));
+        if (iModem)
+            modem_n(k) = length(twoDim_const_orders) + iModem;
+        end
+
+    end
 end
 
 %% Energy loading (constellation scaling factors)
+% Note 2-dimensional subchannels whose bit loading is 1 (i.e. M=2) use a
+% QAM constellation equivalent to a 2-PAM rotated by 90 degrees, which
+% implies the two dimensions are really used regardless.
 
 % Preallocate
 Scale_n = zeros(N/2 + 1, nSymbols); % Constellation scaling factors
@@ -329,7 +348,6 @@ for k = 1:(N/2 + 1)
                     modulator{modem_n(k)}.constellation,...
                     'avpow', En_bar(k));
             else
-
                 Scale_n(k) = modnorm(...
                     modulator{modem_n(k)}.constellation,...
                     'avpow', 0.5 * En_discrete(k));
@@ -382,8 +400,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Constellation Encoding
     for k = 1:(N/2 + 1)
+        if (modem_n(k) > 0)
         X(k, :) = Scale_n(k) * ...
             modulator{modem_n(k)}.modulate(tx_symbols(k, :));
+        end
     end
 
     % Hermitian symmetry
