@@ -85,6 +85,10 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
     [w, b, SNRteq, bias] = ...
         teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
 
+    if(~isreal(w))
+        warning('MMSE-TEQ designed with complex taps');
+    end
+
     fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
 
     % Now compute the water-filling solution for the target pulse response
