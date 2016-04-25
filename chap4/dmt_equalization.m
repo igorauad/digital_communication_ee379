@@ -197,6 +197,8 @@ fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
 %% Analysis of the Error Probability per dimension
 % Comparison between the water-filling and the discrete loading
 
+fprintf('\n----------------- Error Probabilities ------------------ \n\n');
+
 % Preallocate
 Pe_bar_n = zeros(N/2 + 1, 1);
 Pe_bar_n_lc   = zeros(N/2 + 1, 1);
@@ -213,7 +215,14 @@ for k = 1:(N/2 + 1)
             M = 2^bn(k);
             Pe_bar_n(k) = 2*(1 - sqrt(2/M) + 1/(2*M)) * ...
                 qfunc(sqrt( 3*SNR_n_norm(k)) );
-            % Note: this is an approximation for sufficiently large M.
+            % Note: the argument here should be actually:
+            %   sqrt((6 * SNR_n(k)) / (2*M -1)),
+            % which is approximately equivalent to sqrt( 3*SNR_n_norm(k))
+            % for sufficiently large M. The approximation won't be very
+            % tight for low M. Since for WF any fractional M is allowed,
+            % using the actual value will lead to higher than expected
+            % error probabilities, so we simply use the approximation. For
+            % LC the Pe computation will be tighter.
         else
             % QAM-SQ
             Pe_bar_n(k) = 2 * (1 - 1/(2^bn_bar(k))) * ...
@@ -222,10 +231,11 @@ for k = 1:(N/2 + 1)
 
         % Levin-Campello (LC):
         if ((mod(bn_discrete(k),2) ~= 0))
-            % For odd b, Hybrid QAM is used:
+            % For odd b, Hybrid QAM is used
             M = 2^bn_discrete(k);
             Pe_bar_n_lc(k) = 2*(1 - sqrt(2/M) + 1/(2*M)) * ...
-                qfunc(sqrt( 3*SNR_n_norm_lc(k)) );
+                qfunc(sqrt( (6 * SNR_n_lc(k)) / (2*M -1)) );
+            % Note the aforementioned q-function argument for Hybrid QAM
         else
             % QAM-SQ
             Pe_bar_n_lc(k) = 2 * (1 - 1/(2^bn_bar_lc(k))) * ...
@@ -254,9 +264,9 @@ if (debug && debug_Pe)
     set(gca,'XLim',[1 N/2+1]);
 end
 
-fprintf('\nAverage Pe per dimension:\n');
-fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n));
-fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc));
+fprintf('Approximate NNUB Pe per dimension:\n');
+fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n,'omitnan'));
+fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc,'omitnan'));
 
 %% Modulators
 
