@@ -70,47 +70,62 @@ SNRmfb = (Ex_bar * norm(p).^2) / N0_over_2;
 fprintf('SNRmfb:    \t %g dB\n\n', 10*log10(SNRmfb))
 
 %% MMSE-TEQ Design
-if (equalizer)
+% The TEQ is designed before loading, by assuming flat input spectrum.
+% However, since bit loading alters the energy allocation among
+% subchannels, the TEQ is redesigned after bit loading.
+
+switch (equalizer)
+    case 1
 
 fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
-    if (nu >= (Lh - 1))
-       error('MMSE-TEQ is unecessary. CP is already sufficient!');
-    end
+        if (nu >= (Lh - 1))
+           error('MMSE-TEQ is unecessary. CP is already sufficient!');
+        end
 
-    [nTaps, delta] = optimizeTeq(p, nu, N0_over_2, Ex_bar, maxNumTaps);
-    fprintf('Optimal L <= %d:\t %d\n', maxNumTaps, nTaps);
-    fprintf('Optimal Delay:  \t %d\n', delta);
+        % Design the TEQ aiming to concentrate the energy in an interval
+        % shorter than the cp
+        [nTaps, delta] = optimizeTeq(p, nu, N0_over_2, Ex_bar, ...
+            maxNumTaps);
+        fprintf('Optimal L <= %d:\t %d\n', maxNumTaps, nTaps);
+        fprintf('Optimal Delay:  \t %d\n', delta);
 
-    [w, b, SNRteq, bias] = ...
-        teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
+        [w, b, SNRteq, bias] = ...
+            teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
 
-    if(~isreal(w))
-        warning('MMSE-TEQ designed with complex taps');
-    end
+        if(~isreal(w))
+            warning('MMSE-TEQ designed with complex taps');
+        end
 
-    fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
+        fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
 
-    % Now compute the water-filling solution for the target pulse response
-    %
-    % Notes:
-    %   # 1) The water-filling solution assumes no ISI/ICI. This is safe
-    %   provided that the TEQ constrains the pulse response energy to a
-    %   portion that can be covered by the guard band.
-    %   # 2) Instead of computing the water-fill solution with the "g_n"
-    %   (unitary-energy SNRs per subchannel) computed with the "N0/2" noise
-    %   variance per dimension in the denominator, the error power should
-    %   be used in the denominator.
-    %
-    unbiased_error_energy_per_dim = ( (norm(p)^2) * Ex_bar) / SNRteq;
-    % New effective channel:
-    H_teq = fft(b, N);
-    % New Unitary-energy SNR:
-    gn_teq = (abs(H_teq).^2) / unbiased_error_energy_per_dim;
-else
-    % When MMSE-TEQ is not used, at least a bias should be generically
-    % defined:
-    bias = 1;
+        % Now compute the water-filling solution for the target pulse
+        % response
+        %
+        % Notes:
+        %   # 1) The water-filling solution assumes no ISI/ICI. This is
+        %   safe provided that the TEQ constrains the pulse response energy
+        %   to a portion that can be covered by the guard band.
+        %   # 2) Instead of computing the water-fill solution with the
+        %   "g_n" (unitary-energy SNRs per subchannel) computed with the
+        %   "N0/2" noise variance per dimension in the denominator, the
+        %   error power should be used in the denominator.
+        %
+        unbiased_error_energy_per_dim = ( (norm(p)^2) * Ex_bar) / SNRteq;
+        % New effective channel:
+        H_teq = fft(b, N);
+        % New Unitary-energy SNR:
+        gn_teq = (abs(H_teq).^2) / unbiased_error_energy_per_dim;
+
+
+        % When the TEQ is employed, the effective pulse response
+        % becomes:
+        p_eff = conv(p,w);
+
+    otherwise
+        % When MMSE-TEQ is not used, at least a bias should be generically
+        % defined:
+        bias = 1;
 end
 
 %% Water filling
@@ -559,9 +574,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     switch (equalizer)
         case 1
-            % When the TEQ is employed, the effective pulse response
-            % becomes:
-            p_eff = conv(p,w);
+            % Use the effective pulse response in the FEQ
             H_freq = fft(p_eff, N);
         otherwise
             H_freq = fft(p, N);
