@@ -12,22 +12,24 @@ debug_tx_energy     = 0;  % Debug transmit energy
 
 
 % Parameters
-L           = 1;       % Oversampling (support only for integer values)
-W           = 1e5;     % Nominal bandwith (Hz)
-Px          = 1e-3;    % Transmit Power (W)
-N0_over_2   = 1e-10;   % Noise PSD (W/Hz/dim) and variance per dimension
-N           = 128;     % FFT size and the number of used real dimensions
-nu          = 8;       % Cyclic Prefix Length
-nDim        = N + nu;  % Total number of real dimensions per DMT symbol
-gap_db      = 8.8;     % SNR gap to capacity (dB)
-delta_f     = 1e3;     % Subchannel bandwidth
-L           = 1;       % Oversampling Ratio
-nSymbols    = 1000;    % Number of DMT symbols per transmission iteration
-loading     = 1;       % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
-equalizer   = 0;       % 0 - None; 1) MMSE-TEQ
+alpha      = 1;         % Increase FFT size by this factor preserving Fs
+% Note: this is useful to evaluate the DMT performance as N -> infty
+L          = 1;         % Oversampling (support only for integer values)
+W          = 1e5;       % Nominal bandwith (Hz)
+Px         = 1e-3;      % Transmit Power (W)
+N0_over_2  = 1e-10;     % Noise PSD (W/Hz/dim) and variance per dimension
+N          = 128*alpha; % FFT size and the number of used real dimensions
+nu         = 8;         % Cyclic Prefix Length
+nDim       = N + nu;    % Total number of real dimensions per DMT symbol
+gap_db     = 8.8;       % SNR gap to capacity (dB)
+delta_f    = 1e3/alpha; % Subchannel bandwidth
+L          = 1;         % Oversampling Ratio
+nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
+loading    = 1;         % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
+equalizer  = 0;         % 0 - None; 1) MMSE-TEQq
 % MMSE-TEQ Parameters
-maxNumTaps  = 20;      % Maixmum allowed feed-forward TEQ length
-filtertype  = 1;       % 1 = FIR; 0 = IIR
+maxNumTaps = 20;        % Maixmum allowed feed-forward TEQ length
+filtertype = 1;         % 1 = FIR; 0 = IIR
 % Monte-Carlo Parameters
 maxNumErrs   = 100;
 maxNumDmtSym = 1e12;
