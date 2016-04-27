@@ -22,10 +22,14 @@ gap     = 10^(gap_db/10); % Gap in linear scale
 % Noise energy per dimension (N0/2):
 sigma_n_sq = 0.1;
 
-% Energy per used dimension (only N real dimensions are effectively used,
-% although there are N + nu):
-Ex_bar = Ex / N;
-% DC + Nyquist + (N/2)-1 complex dimensions
+% Energy per real dimension:
+Ex_bar = Ex / nDim;
+% Note: only N real dimensions are effectively are used for data, namely
+% the DC and Nyquist real dimensions + (N/2)-1 complex dimensions, but all
+% N + nu real dimensions are loaded with energy. In another words, since
+% repetition of samples in the prefix increases energy, differently to VC,
+% Ex_bar here considers the redundant real dimensions, so that the
+% effective transmit energy in the end is equal to Ex.
 
 
 %% Pulse Response
@@ -93,7 +97,7 @@ fprintf('Non-equalized DMT:\n\n');
 % SNR for unitary energy transmit symbol:
 gn = (abs(H).^2) / sigma_n_sq;
 
-[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar * (N/nDim), N, gap);
+[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar, N, gap);
 % Recall the budget "Ex" must be reduced by a factor N/(N + nu), to account
 % for the fact that repetition in the cyclic prefix will increase the
 % energy (in VC there is no repetition, but simply zer-padding). So here
@@ -152,7 +156,7 @@ H_teq = fft(b, N);
 % New Unitary-energy SNR:
 gn_teq = (abs(H_teq).^2) / unbiased_error_energy_per_dim;
 % Water-filling:
-[bn_bar_teq, ~, usedTones] = waterFilling(gn_teq, Ex_bar*(N/nDim), N, gap);
+[bn_bar_teq, ~, usedTones] = waterFilling(gn_teq, Ex_bar, N, gap);
 
 % Number of bits per dimension
 b_bar_teq = (1/nDim)*(sum(bn_bar_teq));
@@ -167,15 +171,25 @@ fprintf('Complexity:               \t %g MACs per sample\n', nTaps + ...
 
 fprintf('\n');
 %% Finally, compare the performance of a DMT with N = 1024 and no TEQ
+% Note the way to increase performance by increasing N is to keep the
+% sampling frequency constant, so that the tone spacing is reduced. By
+% doing so, the transmit energy, being Px*Tsym, has to increase, because
+% Tsym = (N + nu) * Ts and N increases. Furthermore, this guarantees that
+% no other cyclic prefix is required if it is already chosen sufficiently,
+% because the channel is sampled by the same frequency. In our case, we
+% will slightly increase the CP to make it sufficient.
 
 fprintf('---------------------------------------\n');
 fprintf('DMT without TEQ, but with N=1024\n\n');
+% Previous power, assuming Ts = 1 for simplicity
+Px = Ex/nDim;
+% New dimensions
 N    = 1024;
-nu   = 24; % Increase the cyclic prefix by the same proportion
+nu   = 6;       % Sufficient cyclic prefix
 nDim = N + nu;
-% New energies
-Ex     = nDim;
-Ex_bar = Ex / N;
+% Now, let's maintain the same power and ajust the energy for the new Tsym
+Ex     = Px * nDim;
+Ex_bar = Ex / nDim;
 
 % Pulse frequency response
 H = fft(p, N);
@@ -184,7 +198,7 @@ H = fft(p, N);
 gn = (abs(H).^2) / sigma_n_sq;
 
 % Water-filling
-[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar*(N/nDim), N, gap);
+[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar, N, gap);
 
 % Bits per dimension
 b_bar = (1/nDim)*(sum(bn_bar));

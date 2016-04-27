@@ -42,10 +42,10 @@ Tsym      = (N + nu) * Ts;  % Symbol Period
 Rsym      = 1 / Tsym;       % DMT Symbol rate (real dimensions per sec)
 Ex        = Px * Tsym;      % Average DMT symbol energy
 % Recall due to repetition of samples in the prefix, the energy budget used
-% by the water-fill contraint must be Ex*(N/nDim), so that the effective
-% transmit energy in the end is equal to Ex.
-Ex_bar    = Ex / N; % Energy per used dimension
-% Used dimensions: DC + Nyquist + (N/2)-1 complex dimensions
+% by the water-fill contraint must be Ex*(N/(N + nu)), so that the
+% effective transmit energy in the end is equal to Ex.
+Ex_bar    = Ex / nDim;      % Energy per real dimension
+
 
 fprintf('Bit loading:\t');
 if (loading)
@@ -175,20 +175,23 @@ phaseShift = exp(1j*2*pi*(n0/N)*(0:N-1));
 % is not used.
 FEQ    = (1/bias) * (1 ./ (H_freq .* phaseShift));
 
+%% SNR for unitary energy transmit symbol
+
+switch (equalizer)
+    case 1 % MMSE-TEQ
+        gn = gn_teq;
+        Ex_red_factor = 1;
+    otherwise
+        gn = (abs(H).^2) / N0_over_2;
+        Ex_red_factor = 1;
+end
+
 %% Water filling
 
 fprintf('\n--------------------- Water Filling -------------------- \n\n');
 
-% SNR for unitary energy transmit symbol:
-switch (equalizer)
-    case 1 % MMSE-TEQ
-        gn = gn_teq;
-    otherwise
-        gn = (abs(H).^2) / N0_over_2;
-end
-
 % Water-filling:
-[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*(N/nDim), N, gap);
+[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*Ex_red_factor, N, gap);
 dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
 unusedTones = setdiff(1:N, usedTones);
 % Number of used tones, according to the water-filling:
@@ -224,7 +227,7 @@ fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 % Rate-adaptive Levin-Campello loading:
 [En_discrete, bn_discrete] = DMTLCra(...
     gn(1:N/2 + 1),...
-    Ex_bar*(N/nDim),...
+    Ex_bar*Ex_red_factor,...
     N, gap_db);
 
 % Energy per real dimension

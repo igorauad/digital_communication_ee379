@@ -14,10 +14,8 @@ nu      = 1;       % Cyclic Prefix Length
 nDim    = N + nu;  % Number of real dimensions
 gap_db  = 0;       % SNR gap to capacity (dB)
 Ex      = nDim;    % Total energy budget for each DMT symbol
-% Note: since repetition of samples in the prefix increases energy,
-% differently to VC, here Ex is not directly passed as the water-fill
-% energy. Instead, Ex is scaled by a factor of (N/nDim), so that the
-% effective transmit energy in the end is equal to Ex.
+% Note the goal is to have Ex_bar = 1 for comparison with other invocations
+% of the example.
 
 % Derivations
 gap     = 10^(gap_db/10); % Gap in linear scale
@@ -25,10 +23,13 @@ gap     = 10^(gap_db/10); % Gap in linear scale
 % Noise energy per dimension (N0/2):
 sigma_n = 0.181;
 
-% Energy per used dimension (only N real dimensions are effectively are
-% used, although there are N + nu):
-Ex_bar = Ex / N
-
+% Energy per real dimension:
+Ex_bar = Ex / nDim
+% Note: only N real dimensions are effectively are used for data, but all N
+% + nu real dimensions are loaded with energy. In another words, since
+% repetition of samples in the prefix increases energy, differently to VC,
+% Ex_bar here considers the redundant real dimensions, so that the
+% effective transmit energy in the end is equal to Ex.
 
 %% Channel
 
@@ -48,6 +49,7 @@ Lh = length(h);
 P_circ = P(:, 1:N);
 P_circ(:,1:nu) = P_circ(:,1:nu) + P(:, N+1:N+nu);
 
+SNRmfb = (Ex_bar * norm(h).^2)/sigma_n
 
 %% Eigendecomposition, DFT and Channel Response comparison
 
@@ -62,7 +64,7 @@ P_circ(:,1:nu) = P_circ(:,1:nu) + P(:, N+1:N+nu);
 % SNR for unitary energy transmit symbol:
 gn = (abs(H).^2) / sigma_n;
 
-[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*(N/nDim), N, gap)
+[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar, N, gap)
 dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)]
 
 % Number of bits per dimension
@@ -111,7 +113,7 @@ c = sum(cn) / nDim
 %% Discrete-loading
 % Levin Campello Rate Adaptive
 
-[En, bn] = DMTLCra(gn(1:N/2 + 1), Ex_bar*(N/nDim), N, gap)
+[En, bn] = DMTLCra(gn(1:N/2 + 1), Ex_bar, N, gap)
 
 % calculate b_bar (bits per dimension)
 b_bar=1/nDim*(sum(bn));
