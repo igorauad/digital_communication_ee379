@@ -546,13 +546,14 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % which is the normalized IDFT. Hence, the energy in x at this
         % point is still given simply by:
         tx_total_energy = norm(u).^2;
+
         % A Ts factor should multiply the norm if u was a vector of samples
         % out of the DAC, but in this case there would be a scaling factor
         % introduced by the DAC anti-imaging LPF. Both would cancel each
         % other.
-        fprintf('Transmit energy per symbol:\t%g\t', ...
+        fprintf('Tx Energy p/ Sym:\t%g\t', ...
             tx_total_energy / nSymbols);
-        fprintf('Nominal:\t%g\n',Ex);
+        fprintf('Nominal:\t%g\t',Ex);
     end
 
     %% Channel
