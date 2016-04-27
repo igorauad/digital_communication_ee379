@@ -463,16 +463,18 @@ for k = 1:(N/2 + 1)
             % Get the k-th subchannel bit load, depending on the loading
             % strategy:
             if (loading == 0)
-                b_k = bn(k);
+                b_k = floor(bn(k));
             else
                 b_k = bn_discrete(k);
             end
 
             %% Compute the minimum distance
-            if (mod(floor(b_k),2) ~= 0 && ...
-                    floor(b_k) ~= 1)
+            if (mod(b_k, 2) ~= 0 && b_k ~= 1)
                 % For Hybrid QAM
                 dmin_n(k) = sqrt(2)*2*Scale_n(k);
+            elseif (b_k == 1 && k ~= 1 && k ~= N/2 + 1)
+                % For "rotated" PAM's
+                dmin_n(k) = 2*Scale_n(k);
             else
                 % For SQ-QAM, including the "rotated" 2-PAM used
                 % for two-dimensional subchannels loaded with bk=1
