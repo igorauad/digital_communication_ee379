@@ -52,6 +52,11 @@ else
     fprintf('Water-filling\n');
 end
 
+% Constants
+
+% Normalized FFT Matrix
+Q = (1/sqrt(N))*fft(eye(N));
+
 %% Pulse Response
 
 p = [-.729 .81 -.9 2 .9 .81 .729];
@@ -127,6 +132,36 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         % defined:
         bias = 1;
 end
+
+%% 1-tap Frequency Equalizer
+
+% Frequency domain response
+switch (equalizer)
+    case 1
+        % Use the effective pulse response in the FEQ
+        H_freq = fft(p_eff, N);
+    otherwise
+        H_freq = fft(p, N);
+end
+
+% Cursor
+switch (equalizer)
+    case 1
+        % MMSE-TEQ Chosen Delay
+        n0 = delta * L;
+        % The cursor considers the MMSE-TEQ delay.
+    otherwise
+        [~, iMax] = find(abs(p)>1e-5, 1, 'first');
+        n0 = iMax - 1;
+
+end
+
+% Corresponding phase shift due to cursor
+phaseShift = exp(1j*2*pi*(n0/N)*(0:N-1));
+
+% Include the unbiasing factor into the FEQ. Note bias=1 when MMSE-TEQ
+% is not used.
+FEQ    = (1/bias) * (1 ./ (H_freq .* phaseShift));
 
 %% Water filling
 
@@ -446,17 +481,13 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 % Preallocate
 X          = zeros(N, nSymbols);
 tx_symbols = zeros(N/2 + 1, nSymbols);
+rx_symbols = zeros(N/2 + 1, nSymbols);
 sym_err_n  = zeros(N/2 + 1, 1);
 
-numErrs = 0; numDmtSym = 0; results=zeros(3,1);
+numErrs = 0; numDmtSym = 0;
 
 % Sys Objects
 BitError = comm.ErrorRate;
-
-% Constantes
-
-% Normalized FFT Matrix
-Q = (1/sqrt(N))*fft(eye(N));
 
 %% Iterative Transmissions
 
@@ -581,18 +612,6 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % Note: synchronization introduces a phase shift that should be taken
     % into account in the FEQ.
 
-    switch (equalizer)
-        case 1
-            % MMSE-TEQ Chosen Delay
-            n0 = delta * L;
-            % The cursor considers the MMSE-TEQ delay.
-            phaseShift = exp(1j*2*pi*(n0/N)*(0:N-1));
-        otherwise
-            % Assume no delay
-            n0 = 0;
-            phaseShift = exp(1j*2*pi*(n0/N)*(0:N-1));
-    end
-
     nRxSamples = (N+nu)*nSymbols;
     y_sync     = z((n0 + 1):(n0 + nRxSamples));
 
@@ -604,45 +623,20 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     y_no_ext = y_sliced(nu + 1:end, :);
 
-    %% Demodulation
+    %% Regular Demodulation (without decision feedback)
 
+    % FFT
     Y = Q * y_no_ext;
 
-    %% FEQ - One-tap Frequency Equalizer
-
-    switch (equalizer)
-        case 1
-            % Use the effective pulse response in the FEQ
-            H_freq = fft(p_eff, N);
-        otherwise
-            H_freq = fft(p, N);
-    end
-
-    % Include the unbiasing factor into the FEQ. Note bias=1 when MMSE-TEQ
-    % is not used.
-    FEQ    = (1/bias) * (1 ./ (H_freq .* phaseShift));
-
+    % FEQ - One-tap Frequency Equalizer
     Z = diag(FEQ) * Y;
 
     %% Constellation decoding (decision)
-    rx_symbols = zeros(N/2+1, nSymbols);
 
     for k = 1:(N/2 + 1)
         if (modem_n(k) > 0)
-        rx_symbols(k, :) = demodulator{modem_n(k)}.demodulate(...
-            (1/Scale_n(k)) * Z(k, :));
-        end
-
-        if (debug && debug_constellation && ...
-                k == debug_tone && iTransmission == 1)
-            figure
-            plot(Z(k, :), 'o')
-            hold on
-            plot(Scale_n(k) * ...
-                modulator{modem_n(k)}.modulate(0:modOrder(k) - 1),...
-                'ro', 'MarkerSize', 8, 'linewidth', 2)
-            legend('Rx', 'Tx')
-            title(sprintf('Tone: %d', debug_tone));
+            rx_symbols(k, :) = demodulator{modem_n(k)}.demodulate(...
+                (1/Scale_n(k)) * Z(k, :));
         end
     end
 
@@ -664,11 +658,30 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
 end
 
+%% Constellation plot for debugging
+if (debug && debug_constellation && modem_n(debug_tone) > 0)
+    k = debug_tone;
+    figure
+    if (dim_per_subchannel(k) == 2)
+        plot(Z(k, :), 'o')
+        hold on
+        plot(Scale_n(k) * ...
+            modulator{modem_n(k)}.modulate(0:modOrder(k) - 1),...
+            'ro', 'MarkerSize', 8, 'linewidth', 2)
+    else
+        plot(Z(k, :) + j*eps, 'o')
+        hold on
+        plot(Scale_n(k) * ...
+            modulator{modem_n(k)}.modulate(0:modOrder(k) - 1) ...
+            + j*eps, 'ro', 'MarkerSize', 8, 'linewidth', 2)
+    end
+    legend('Rx', 'Tx')
+    title(sprintf('Tone: %d', debug_tone));
+end
+
 %% Results
 fprintf('\n----------------------- Results ------------------------ \n\n');
 fprintf('Pe_bar:       \t %g\n', mean(ser_n_bar));
-fprintf('Total errors: \t %g\n', results(2));
-fprintf('Total symbols:\t %g\n', results(3));
 
 if (debug && debug_Pe)
     figure
