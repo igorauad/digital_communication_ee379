@@ -76,7 +76,7 @@ Lh = length(p);
 SNRmfb = (Ex_bar * norm(p).^2) / N0_over_2;
 fprintf('SNRmfb:    \t %g dB\n\n', 10*log10(SNRmfb))
 
-%% MMSE-TEQ Design
+%% Equalizers
 % The TEQ is designed before loading, by assuming flat input spectrum.
 % However, since bit loading alters the energy allocation among
 % subchannels, the TEQ is redesigned after bit loading.
@@ -178,7 +178,10 @@ FEQ    = (1/bias) * (1 ./ (H_freq .* phaseShift));
 %% SNR for unitary energy transmit symbol
 
 switch (equalizer)
-    case 1 % MMSE-TEQ
+    case 1
+        % For the MMSE-TEQ, the effective pulse responsive becomes the
+        % result of the convolution between the actual pulse response and
+        % the feed-forward equalizer.
         gn = gn_teq;
         Ex_red_factor = 1;
     otherwise

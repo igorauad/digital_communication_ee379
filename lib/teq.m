@@ -80,6 +80,7 @@ if filtertype==1 % FIR
 
     % Find the MMSE:
     mmse = b*rle*b';
+    % Equivalent to "lambda_min * norm(p)^2"
 
     % "The bias factor itself is obtained by first forming the
     % convolution":
