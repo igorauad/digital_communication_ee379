@@ -23,6 +23,7 @@ gap_db     = 8.8;       % SNR gap to capacity (dB)
 delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
 loading    = 1;         % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
+max_load   = 12;        % Maximum allowed bit load for each subchannel
 equalizer  = 0;         % 0 - None; 1) MMSE-TEQq
 % MMSE-TEQ Parameters
 maxNumTaps = 20;        % Maixmum allowed feed-forward TEQ length
@@ -230,7 +231,7 @@ fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 [En_discrete, bn_discrete] = DMTLCra(...
     gn(1:N/2 + 1),...
     Ex_bar*Ex_red_factor,...
-    N, gap_db);
+    N, gap_db, max_load);
 
 % Energy per real dimension
 En_bar_lc = [En_discrete, fliplr(conj(En_discrete(2:N/2)))] ...

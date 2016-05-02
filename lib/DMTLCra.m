@@ -1,4 +1,4 @@
-function [En,bn] = DMTLCra(gn,Ex_bar,N,gap_db)
+function [En,bn] = DMTLCra(gn, Ex_bar, N, gap_db, max_load)
 %
 % EE379C 2008 Spring
 %
@@ -9,6 +9,7 @@ function [En,bn] = DMTLCra(gn,Ex_bar,N,gap_db)
 % Ex_bar is the normalized energy
 % N is the total number of real dimensions
 % gap_db is the gap in dB
+% max_load is the maximum allowed bit load for a subchannel
 %
 % Outputs
 % En is the vector energy distribution (PAM or QAM) per subchannel
@@ -16,6 +17,10 @@ function [En,bn] = DMTLCra(gn,Ex_bar,N,gap_db)
 %
 % The first and last bins are PAM; the rest are QAM.
 % dB into normal scale
+
+if (nargin < 5)
+    max_load = inf;
+end
 
 gap = 10^(gap_db/10);
 
@@ -47,13 +52,22 @@ else
 end
 %decision_table: debugging purpose
 while(1)
-    [y,index]=min(decision_table);
-    E_so_far=E_so_far+y;
+    [y,index] = min(decision_table);
+    if (isinf(y))
+        warning('Consider pouring the remaining energy over subchannels');
+        error('All suchannels are maximally loaded');
+    end
+    E_so_far = E_so_far+y;
     if E_so_far > Ex_bar*N
         break;
     else
         En(index)=En(index)+y;
         bn(index)=bn(index)+1;
+        % Prevent constellations above a certain maximum load
+        if( (bn(index) == max_load) )
+            decision_table(index) = inf;
+        end
+        % Update the decision table
         if (index ==1 || index == N/2+1)
             decision_table(index) = 4*decision_table(index);
         else
