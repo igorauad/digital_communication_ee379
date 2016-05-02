@@ -45,10 +45,13 @@ Ex        = Px * Tsym;      % Average DMT symbol energy
 % effective transmit energy in the end is equal to Ex.
 Ex_bar    = Ex / nDim;      % Energy per real dimension
 
-% Constants
+%% Constants
 
 % Normalized FFT Matrix
 Q = (1/sqrt(N))*fft(eye(N));
+
+% Dimensions per subchannel:
+dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
 
 %% Pulse Response
 
@@ -186,10 +189,6 @@ fprintf('\n--------------------- Water Filling -------------------- \n\n');
 
 % Water-filling:
 [bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*Ex_red_factor, N, gap);
-dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
-unusedTones = setdiff(1:N, usedTones);
-% Number of used tones, according to the water-filling:
-N_star = length(usedTones);
 
 % Bits per subchannel
 bn = bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1);
@@ -234,26 +233,13 @@ bn_bar_lc = [bn_discrete(1:N/2+1), fliplr(bn_discrete(2:N/2))] ./ ...
 % Total bits per dimension:
 b_bar_discrete = 1/nDim*(sum(bn_discrete));
 
-% Compare water-filling and discrete-loading
-if (debug && debug_loading && loading)
-    figure
-    plot(bn(1:N/2+1), ...
-        'linewidth', 1.1)
-    hold on
-    plot(bn_discrete, 'g')
-    legend('Water-filling', 'Discrete Loading')
-    xlabel('Subchannel');
-    ylabel('Bits');
-    set(gca,'XLim',[1 N/2+1]);
-end
-
 % SNRdmt from the number of bits per dimension
-SNRdmt_discrete = gap*(2^(2*b_bar_discrete)-1);
+SNRdmt_discrete    = gap*(2^(2*b_bar_discrete)-1);
 SNRdmt_discrete_db = 10*log10(SNRdmt_discrete);
 % SNR on each tone, per dimension:
-SNR_n_lc      = En_bar_lc .* gn; % SNR per real dimension
+SNR_n_lc           = En_bar_lc .* gn; % SNR per real dimension
 % Normalized SNR on each tone, per dimension (should approach the gap)
-SNR_n_norm_lc = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
+SNR_n_norm_lc      = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
 
 % Bit rate
 Rb = sum(bn_discrete) * Fs/(N + nu);
@@ -271,6 +257,19 @@ fprintf('\ncapacity:               \t %g bits/dimension', c)
 fprintf('\nBit rate:               \t %g mbps\n', Rb/1e6);
 fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
     SNRdmt_discrete_db);
+
+% Compare water-filling and discrete-loading
+if (debug && debug_loading && loading)
+    figure
+    plot(bn(1:N/2+1), ...
+        'linewidth', 1.1)
+    hold on
+    plot(bn_discrete, 'g')
+    legend('Water-filling', 'Discrete Loading')
+    xlabel('Subchannel');
+    ylabel('Bits');
+    set(gca,'XLim',[1 N/2+1]);
+end
 
 %% Analysis of the Error Probability per dimension
 % Comparison between the water-filling and the discrete loading
