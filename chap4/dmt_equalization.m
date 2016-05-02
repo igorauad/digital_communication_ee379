@@ -249,7 +249,7 @@ if (debug && debug_loading && loading)
     plot(bn(1:N/2+1), ...
         'linewidth', 1.1)
     hold on
-    stem(bn_discrete, 'g')
+    plot(bn_discrete, 'g')
     legend('Water-filling', 'Discrete Loading')
     xlabel('Subchannel');
     ylabel('Bits');
@@ -345,7 +345,7 @@ if (debug && debug_Pe)
     figure
     plot(Pe_bar_n, 'linewidth', 1.1)
     hold on
-    stem(Pe_bar_n_lc, 'r')
+    plot(Pe_bar_n_lc, 'r')
     legend('Water-filling', 'Levin-Campello')
     title('Pe per dimension on each subchannel')
     set(gca,'XLim',[1 N/2+1]);
@@ -713,7 +713,7 @@ if (debug && debug_Pe)
     stem(Pe_bar_n_lc, 'r')
     title('Results: Pe per dimension')
     xlabel('Subchannel (n)')
-    ylabel('Pe_{bar}')
+    ylabel('$\bar{Pe}(n)$')
     legend('Measured','WF','LC')
     set(gca,'XLim',[1 N/2+1]);
 end
