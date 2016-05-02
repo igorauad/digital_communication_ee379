@@ -534,7 +534,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Modulation
 
-    x = Q' * X;
+    x = sqrt(N) * ifft(X, N);
 
     %% Cyclic extension
 
@@ -647,7 +647,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     %% Regular Demodulation (without decision feedback)
 
     % FFT
-    Y = Q * y_no_ext;
+    Y = (1/sqrt(N)) * fft(y_no_ext, N);
 
     % FEQ - One-tap Frequency Equalizer
     Z = diag(FEQ) * Y;
