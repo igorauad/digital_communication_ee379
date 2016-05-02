@@ -19,6 +19,8 @@ Px         = 1e-3;      % Transmit Power (W)
 N0_over_2  = 1e-10;     % Noise PSD (W/Hz/dim) and variance per dimension
 N          = 128;       % FFT size and the number of used real dimensions
 nu         = 8;         % Cyclic Prefix Length
+tau        = 8;         % Cuclic Suffix
+windowing  = 1;         % Activate Lcs windowing + Overlap
 nDim       = N + nu;    % Total number of real dimensions per DMT symbol
 gap_db     = 8.8;       % SNR gap to capacity (dB)
 delta_f    = 51.75e3;   % Subchannel bandwidth
@@ -97,6 +99,15 @@ Lh = length(p);
 SNRmfb = (Ex_bar * norm(p).^2) / N0_over_2;
 fprintf('SNRmfb:    \t %g dB\n\n', 10*log10(SNRmfb))
 
+%% Windowing
+
+if (windowing)
+    dmtWindow = designDmtWindow(N, nu, tau);
+else
+    % When windowing is not used, the suffix must be 0
+    tau = 0;
+end
+
 %% Equalizers
 % The TEQ is designed before loading, by assuming flat input spectrum.
 % However, since bit loading alters the energy allocation among
@@ -128,6 +139,10 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
                 w = ssnr_teq(p, L, delta, floor(nTaps/L), nu, debug_teq);
         end
 
+
+        % Cursor
+        n0 = (delta * L);
+        fprintf('Chosen cursor:\t%d\n',n0);
 
         if(~isreal(w))
             warning('MMSE-TEQ designed with complex taps');
@@ -501,9 +516,17 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     x_ext = [x(Nfft-nu+1:Nfft, :); x];
 
-    %% Parallel to serial
+    %% Cyclic extension -> Windowing + overlap -> Parallel to serial
+    if (windowing)
+        x_ext = [x(N-nu+1:N, :); x; x(1:tau,:)];
+        x_ce = windowAndOverlap(x_ext, dmtWindow, N, nu, tau);
+        u = x_ce(:);
+    else
+        x_ext = [x(N-nu+1:N, :); x];
+        u = x_ext(:);
+    end
 
-    u = x_ext(:);
+    %% Debug Tx Energy
 
     if (debug && debug_tx_energy)
         % Note: "u" should become samples leaving the DAC. In that case,
