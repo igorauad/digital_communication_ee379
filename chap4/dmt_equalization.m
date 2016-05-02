@@ -22,7 +22,6 @@ nDim       = N + nu;    % Total number of real dimensions per DMT symbol
 gap_db     = 8.8;       % SNR gap to capacity (dB)
 delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
-loading    = 1;         % 0 - Water-fill; 1 - Discrete (LC Rate Adaptive)
 max_load   = 12;        % Maximum allowed bit load for each subchannel
 equalizer  = 0;         % 0 - None; 1) MMSE-TEQq
 % MMSE-TEQ Parameters
@@ -45,14 +44,6 @@ Ex        = Px * Tsym;      % Average DMT symbol energy
 % by the water-fill contraint must be Ex*(N/(N + nu)), so that the
 % effective transmit energy in the end is equal to Ex.
 Ex_bar    = Ex / nDim;      % Energy per real dimension
-
-
-fprintf('Bit loading:\t');
-if (loading)
-    fprintf('LC Rate Adaptive\n');
-else
-    fprintf('Water-filling\n');
-end
 
 % Constants
 
@@ -358,12 +349,7 @@ fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc,'omitnan'));
 %% Modulators
 
 % Modulation order on each subchannel
-if (loading == 0)
-    % Non-optimal discrete loading
-    modOrder = 2.^floor(bn);
-else
-    modOrder = 2.^bn_discrete;
-end
+modOrder = 2.^bn_discrete;
 
 oneDimModOrders = [modOrder(1), modOrder(N/2 + 1)];
 twoDimModOrders = modOrder(2:N/2);
@@ -440,26 +426,14 @@ for k = 1:(N/2 + 1)
             % The last argument should be the Energy per 2 dimensions.
             % However, since Hermitian symmetry will double the energy, it
             % is chosen as the energy per real dimension.
-            if (loading == 0)
-                Scale_n(k) = modnorm(...
-                    modulator{modem_n(k)}.constellation,...
-                    'avpow', En_bar(k));
-            else
-                Scale_n(k) = modnorm(...
-                    modulator{modem_n(k)}.constellation,...
-                    'avpow', 0.5 * En_discrete(k));
-            end
+            Scale_n(k) = modnorm(...
+                modulator{modem_n(k)}.constellation,...
+                'avpow', 0.5 * En_discrete(k));
         else
             % The last argument should be the Energy per real dimension
-            if (loading == 0)
-                Scale_n(k) = modnorm(...
-                    modulator{modem_n(k)}.constellation,...
-                    'avpow', En_bar(k));
-            else
-                Scale_n(k) = modnorm(...
-                    modulator{modem_n(k)}.constellation,...
-                    'avpow', En_discrete(k));
-            end
+            Scale_n(k) = modnorm(...
+                modulator{modem_n(k)}.constellation,...
+                'avpow', En_discrete(k));
         end
     end
 end
@@ -469,18 +443,13 @@ for k = 1:(N/2 + 1)
     if (En_bar(k) > 0 && modOrder(k) > 1)
         if (dim_per_subchannel(k) == 2)
             % Get the k-th subchannel bit load, depending on the loading
-            % strategy:
-            if (loading == 0)
-                b_k = floor(bn(k));
-            else
-                b_k = bn_discrete(k);
-            end
+            % strategy.
 
-            %% Compute the minimum distance
-            if (mod(b_k, 2) ~= 0 && b_k ~= 1)
+            % Compute the minimum distance
+            if (mod(bn_discrete(k), 2) ~= 0 && bn_discrete(k) ~= 1)
                 % For Hybrid QAM
                 dmin_n(k) = sqrt(2)*2*Scale_n(k);
-            elseif (b_k == 1 && k ~= 1 && k ~= N/2 + 1)
+            elseif (bn_discrete(k) == 1 && k ~= 1 && k ~= N/2 + 1)
                 % For "rotated" PAM's
                 dmin_n(k) = 2*Scale_n(k);
             else
