@@ -47,6 +47,11 @@ Ex_bar    = Ex / nDim;      % Energy per real dimension
 
 %% Constants
 
+% TEQ optimization criterion
+OPT_MMSE    = 0;
+OPT_SSNR    = 1;
+OPT_GEO_SNR = 2;
+
 % Normalized FFT Matrix
 Q = (1/sqrt(N))*fft(eye(N));
 
@@ -84,13 +89,17 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
            error('MMSE-TEQ is unecessary. CP is already sufficient!');
         end
 
-        % Design the TEQ aiming to concentrate the energy in an interval
-        % shorter than the cp
-        [nTaps, delta] = optimizeTeq(p, nu, N0_over_2, Ex_bar, ...
-            maxNumTaps);
+        % Search optimum length and delay for the TEQ design
+
+        % Delay range:
+        delta_min = round(maxNumTaps/2); delta_max = maxNumTaps;
+
+        [nTaps, delta] = optimizeTeq(OPT_SSNR, p, nu, N0_over_2, ...
+            Ex_bar, gap, N, maxNumTaps, delta_min, delta_max);
         fprintf('Optimal L <= %d:\t %d\n', maxNumTaps, nTaps);
         fprintf('Optimal Delay:  \t %d\n', delta);
 
+        % Design final TEQ
         [w, b, SNRteq, bias] = ...
             teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
 
@@ -100,39 +109,24 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
         fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
 
-        % Now compute the water-filling solution for the target pulse
-        % response
-        %
+        % New effective channel:
+        p_eff = conv(p,w);
+
+        % Shortening SNR:
+        ssnr = teqSSNR( w, p, delta, nu );
+        fprintf('SSNR:\t %g dB\n', 10*log10(ssnr));
+
         % Notes:
         %   # 1) The water-filling solution assumes no ISI/ICI. This is
         %   safe provided that the TEQ constrains the pulse response energy
-        %   to a portion that can be covered by the guard band.
-        %   # 2) Instead of computing the water-fill solution with the
-        %   "g_n" (unitary-energy SNRs per subchannel) computed with the
-        %   "N0/2" noise variance per dimension in the denominator, the
-        %   error power should be used in the denominator.
-        %
-        unbiased_error_energy_per_dim = ( (norm(p)^2) * Ex_bar) / SNRteq;
-        % New effective channel:
-        H_teq = fft(b, N);
-        % New Unitary-energy SNR:
-        gn_teq = (abs(H_teq).^2) / unbiased_error_energy_per_dim;
+        %   to a portion that can be covered by the guard band. However,
+        %   with windowing+overlap this fails.
+        %   # 2) Note the feed-foward TEQ at the receiver shapes the
+        %   spectrum of the noise. Hence the gain to noise ratio becomes:
+        H_w = fft(w, N);
+        H_eff = fft(p_eff, N);
+        gn_teq = (abs(H_eff).^2)./(N0_over_2*(abs(H_w).^2));
 
-        % When the TEQ is employed, the effective pulse response
-        % becomes:
-        p_eff = conv(p,w);
-        % Compute the "Shortening SNR" (SSNR), which measures the ratio
-        % between the energy within the window of samples where MMSE should
-        % concentrate the energy and outside the window.
-        p_eff_indexes = 1:length(p_eff);
-        % nu + 1 consecutive samples where energy should be concentrated
-        win_indexes = delta+1:delta+nu+1;
-        p_win = p_eff(win_indexes);
-        % remaining samples
-        wall_indexes = setdiff(p_eff_indexes, win_indexes);
-        p_wall = p_eff(wall_indexes);
-        ssnr = (p_win * p_win') / (p_wall * p_wall');
-        fprintf('SSNR:\t %g dB\n', 10*log10(ssnr));
     otherwise
         % When MMSE-TEQ is not used, at least a bias should be generically
         % defined:
