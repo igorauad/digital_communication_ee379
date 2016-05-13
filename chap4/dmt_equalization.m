@@ -22,8 +22,8 @@ nDim       = N + nu;    % Total number of real dimensions per DMT symbol
 gap_db     = 8.8;       % SNR gap to capacity (dB)
 delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
-max_load   = 12;        % Maximum allowed bit load for each subchannel
-equalizer  = 0;         % 0 - None; 1) MMSE-TEQq
+max_load   = inf;        % Maximum allowed bit load for each subchannel
+equalizer  = 0;         % 0 - None; 1) MMSE-TEQ
 % MMSE-TEQ Parameters
 maxNumTaps = 20;        % Maixmum allowed feed-forward TEQ length
 filtertype = 1;         % 1 = FIR; 0 = IIR
