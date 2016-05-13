@@ -26,7 +26,7 @@ gap_db     = 8.8;       % SNR gap to capacity (dB)
 delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
 max_load   = inf;        % Maximum allowed bit load for each subchannel
-equalizer  = 0;         % 0 - None; 1) TEQ
+equalizer  = 0;         % 0 - None; 1) TEQ; 2) Cheong; 3) Time Domain
 noDcNyquist= 1;         % Flag to avoid loading DC and Nyquist subchannels
 % MMSE-TEQ Parameters
 teqType    = 0;         % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
@@ -71,6 +71,10 @@ Ex_bar    = Ex / nDim;      % Energy per real dimension
 % TEQ criterion
 TEQ_MMSE    = 0;
 TEQ_SSNR    = 1;
+
+% Time-domain Precoder
+tdPrecoderPostCursor = 0;
+tdPrecoderPostPreCursor = 1;
 
 % Normalized FFT Matrix
 Q = (1/sqrt(Nfft))*fft(eye(Nfft));
@@ -181,6 +185,23 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         %   Ultimately, the gain-to-noise ratio is not being affected by
         %   the TEQ in the expression. This can be the fallacy in the
         %   model, specially regarding the frequency notches.
+
+    case 2
+fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
+        bias = 1;
+        FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
+        w_norm_n =  FreqPrecoder.wk;
+    case 3
+fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
+        bias = 1;
+        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, N,...
+            tdPrecoderPostCursor, windowing);
+        w_norm_n =  TimePrecoder.ici.wk;
+
+    otherwise
+        % When MMSE-TEQ is not used, at least a bias should be generically
+        % defined:
+        bias = 1;
 end
 
 %% 1-tap Frequency Equalizer
@@ -223,7 +244,28 @@ switch (equalizer)
         % result of the convolution between the actual pulse response and
         % the feed-forward equalizer.
         gn = gn_teq;
-        Ex_red_factor = 1;
+    case 2
+        % The energy increase in each subchannel is given by the Euclidean
+        % norm of the corresponding row. Thus, the total energy after
+        % precoding becomes, on average, sum(Ex_bar_n * w_norm_n), for n in
+        % 0 to N-1. Assuming an initial flat energy load among subchannels,
+        % i.e., that Ex_bar_n is the same for all n, then the total average
+        % tx energy is Ex = Ex_bar * sum(w_norm_n), so that the resulting
+        % energy per dimension becomes Ex_bar * sum(w_norm_n) / N. From
+        % that, we can conclude that the energy per dimension is increased
+        % through precoding by a factor of "sum(w_norm_n)/N" or,
+        % equivalently, by mean(w_norm_n). This increase must be
+        % compensated in the budget passed to the water-filling solver.
+        % Furthermore, note that water-fill does not lead to flat energy
+        % load, so that better results can be obtained by jointly designing
+        % the energy budget scale factor and the bit loading.
+        gn = (abs(H).^2) ./ (w_norm_n * N0_over_2);
+    case 3
+        % The normalization adopted for the time-domain precoder is almost
+        % equal to the one for the frequency-domain precoder. The only
+        % difference is that the entries zeroed for complexity reduction
+        % are accounted.
+        gn = (abs(H).^2) ./ (w_norm_n * N0_over_2);
     otherwise
         gn = (abs(H).^2) / N0_over_2;
         Ex_red_factor = 1;
@@ -508,13 +550,16 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % Hermitian symmetry
     X(Nfft - N/2 + 2:Nfft, :) = flipud( conj( X(2:N/2, :) ) );
 
-    %% Modulation
+    %% Per-tone Precoder
+    if (equalizer == 2)
+        X = precodeFreqDomain( X, FreqPrecoder, modOrder, dmin_n );
+    end
 
     x = sqrt(Nfft) * ifft(X, Nfft);
 
-    %% Cyclic extension
-
-    x_ext = [x(Nfft-nu+1:Nfft, :); x];
+    if (equalizer == 3)
+        x = precodeTimeDomain( x, TimePrecoder );
+    end
 
     %% Cyclic extension -> Windowing + overlap -> Parallel to serial
     if (windowing)
@@ -628,22 +673,35 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     y_no_ext = y_sliced(nu + 1:end, :);
 
-    %% Regular Demodulation (without decision feedback)
+    %% Frequency-domain Equalization
+    switch (equalizer)
+        case 3 % Time-domain ISI DFE
+            % Note: the section name may be misleading. The receiver below
+            % equalizes ISI using time-domain DMT symbols. However, its
+            % derivation is based in the frequency-domain.
+            [ rx_symbols, Z ] = dmtTdDfeReceiver(y_no_ext, modulator, ...
+                demodulator, modem_n, Scale_n, TimePrecoder, FEQ);
+        case 2 % DMT with additional modulo operation
+            [ rx_symbols, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
+                modem_n, Scale_n, FEQ, modOrder, dmin_n);
+        otherwise
+            % FFT
+            Y = (1/sqrt(Nfft)) * fft(y_no_ext, Nfft);
 
-    % FFT
-    Y = (1/sqrt(Nfft)) * fft(y_no_ext, Nfft);
+            % FEQ - One-tap Frequency Equalizer
+            Z = diag(FEQ) * Y(used_fft_indices, :);
 
-    % FEQ - One-tap Frequency Equalizer
-    Z = diag(FEQ) * Y(used_fft_indices, :);
+            %% Constellation decoding (decision)
 
-    %% Constellation decoding (decision)
-
-    for k = n_loaded
-        if (modem_n(k) > 0)
-            rx_data(k, :) = demodulator{modem_n(k)}.demodulate(...
-                (1/Scale_n(k)) * Z(k, :));
-        end
+            for k = n_loaded
+                if (modem_n(k) > 0)
+                    rx_data(k, :) = demodulator{modem_n(k)}.demodulate(...
+                        (1/Scale_n(k)) * Z(k, :));
+                end
+            end
     end
+
+    %% Error results
 
     % Symbol error count
     sym_err_n = sym_err_n + symerr(tx_data, rx_data, 'row-wise');
@@ -661,28 +719,15 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     fprintf('nErrors:\t%g\t', numErrs);
     fprintf('nDMTSymbols:\t%g\n', numDmtSym);
 
+    %% Constellation plot for debugging
+    if (debug && debug_constellation && modem_n(debug_tone) > 0 ...
+        && iTransmission == 1)
+        k = debug_tone;
 
-end
-
-%% Constellation plot for debugging
-if (debug && debug_constellation && modem_n(debug_tone) > 0)
-    k = debug_tone;
-    figure
-    if (dim_per_subchannel(k) == 2)
-        plot(Z(k, :), 'o')
-        hold on
-        plot(Scale_n(k) * ...
-            modulator{modem_n(k)}.modulate(0:modOrder(k) - 1),...
-            'ro', 'MarkerSize', 8, 'linewidth', 2)
-    else
-        plot(Z(k, :) + j*eps, 'o')
-        hold on
-        plot(Scale_n(k) * ...
-            modulator{modem_n(k)}.modulate(0:modOrder(k) - 1) ...
-            + j*eps, 'ro', 'MarkerSize', 8, 'linewidth', 2)
+        viewConstellation(Z, Scale_n(k) * ...
+                modulator{modem_n(k)}.modulate(0:modOrder(k) - 1), k);
     end
-    legend('Rx', 'Tx')
-    title(sprintf('Tone: %d', debug_tone));
+
 end
 
 %% Results
