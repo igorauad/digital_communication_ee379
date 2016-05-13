@@ -182,7 +182,7 @@ end
 fprintf('\n--------------------- Water Filling -------------------- \n\n');
 
 % Water-filling:
-[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*Ex_red_factor, N, gap);
+[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar, N, gap);
 
 % Bits per subchannel
 bn = bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1);
@@ -214,7 +214,7 @@ fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 % Rate-adaptive Levin-Campello loading:
 [En_discrete, bn_discrete] = DMTLCra(...
     gn(1:N/2 + 1),...
-    Ex_bar*Ex_red_factor,...
+    Ex_bar,...
     N, gap_db, max_load);
 
 % Energy per real dimension
