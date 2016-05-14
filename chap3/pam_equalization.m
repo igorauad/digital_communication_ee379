@@ -459,13 +459,14 @@ z_k_unscaled = z_k / Scale;
 
 if (debug)
     figure
-    plot(Tsym*(0:nSymbols-1), unscaled_signals, 'o')
-    xlabel('Tempo (s)')
-    ylabel('Amplitude')
+    stem(Tsym*(0:nSymbols-1), unscaled_signals, 'o')
+    xlabel('Time (s)', 'FontSize', 12)
+    ylabel('Amplitude', 'FontSize', 12)
     grid on
     hold on
-    plot(Tsym*(0:nSymbols-1), z_k_unscaled, 'ro')
-    legend('Original','Equalized')
+    stem(Tsym*(0:nSymbols-1), z_k_unscaled, 'ro', 'MarkerSize', 10)
+    legend('Tx','Rx', 'FontSize', 12)
+    set(gca, 'YTick', [-(M - 1):2:(M)])
 end
 
 %% Decision
