@@ -18,7 +18,7 @@ windowStart = (n0 + 1);
 windowEnd   = nSymbols*symbolSize + windowStart - 1;
 
 % Window:
-dmtWindow = assembleWindow(Nfft, Lcp, Lcs);
+dmtWindow = designDmtWindow(Nfft, Lcp, Lcs);
 
 nAffected = L - (Lcp - Lcs) - n0; % Number of affected samples
 
@@ -66,7 +66,14 @@ Ht = toeplitz([h(end) zeros(1, L-(Lcp-Lcs)-n0-1)], flipud(h((Lcp - Lcs + n0 + 2)
 Ht_windowed = Ht * W_t;
 
 % Post-cursor ISI
-Hisi(1:(nAffected), (Nfft - L + Lcp + 1):(Nfft + Lcs - n0) ) = Ht_windowed;
+if (n0 >= Lcs)
+    Hisi(1:(nAffected), (Nfft - L + Lcp + 1):(Nfft + Lcs - n0) ) = Ht_windowed;
+else
+    shiftBy = Lcs - n0;
+    Hisi(1:(nAffected), (Nfft - L + Lcp + 1):(Nfft + Lcs - n0) ) = Ht_windowed;
+    Hisi = Hisi(:,shiftBy+1:end);
+    Hisi = circshift(Hisi, [0, shiftBy]);
+end
 
 % Post-cursor ICI
 Hici(1:(nAffected), (Nfft - L + 1):(Nfft -Lcp + Lcs - n0)) = -Ht_windowed;
