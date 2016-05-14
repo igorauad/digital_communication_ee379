@@ -87,10 +87,42 @@ dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
 used_fft_indices = [1:(N/2), (Nfft - N/2 + 1):Nfft].';
 %% Pulse Response
 
-p = [-.729 .81 -.9 2 .9 .81 .729];
-% Note: According to the model developed in Chap4 of EE379, p(t), the pulse
-% response, corresponds to the combination between the post-DAC filter, the
-% channel impulse response and the pre-ADC filtering.
+channelChoice = 2;
+
+switch (channelChoice)
+    case 0
+        p = [-.729 .81 -.9 2 .9 .81 .729];
+        % Note: According to the model developed in Chap4 of EE379, p(t),
+        % the pulse response, corresponds to the combination between the
+        % post-DAC filter, the channel impulse response and the pre-ADC
+        % filtering.
+    case 1
+        % D2-H2
+        N_old = N;
+        load('/Users/igorfreire/Documents/Laps/gfast_simulator/Channel_Model/data/all_models_106mhz.mat');
+        N = N_old;
+        iModel = 2;
+        H_herm = [H(:,iModel,iModel); conj(flipud(H(2:end-1,iModel,iModel)))];
+        if (any(imag(ifft(H_herm, N)) > 1e-8))
+            warning('H is not Hermitian symmetric');
+        end
+        clear H
+        h = real(ifft(H_herm));
+
+        p = truncateCir(h).';
+    case 2
+        % D2-H1
+        load('/Users/igorfreire/Documents/Laps/gfast_simulator/Cables/D2-H1.mat');
+        h = real(ifft(H));
+
+        if (any(imag(ifft(H, N)) > 0))
+            warning('H is not Hermitian symmetric');
+        end
+
+        p = truncateCir(h).';
+    case 3
+        p = [1e-5 1e-5 .91 -.3 .2 .09 .081 .0729];
+end
 
 % Pulse frequency response
 H = fft(p, Nfft);
