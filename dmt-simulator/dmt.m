@@ -640,7 +640,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     %   directly in the convolution, without a Ts factor in front.
 
     % Add noise
-    y = y + (sqrt(N0_over_2) * randn(length(y),1));
+    noise = (sqrt(N0_over_2) * randn(length(y),1));
+    y = y + noise;
     % Important considerations:
     %
     % First, recall the noise continuous-time PSD coincides with the noise
