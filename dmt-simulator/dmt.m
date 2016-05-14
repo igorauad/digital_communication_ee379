@@ -67,6 +67,7 @@ Ex        = Px * Tsym;      % Average DMT symbol energy
 Ex_bar    = Ex / nDim;      % Energy per real dimension
 
 %% Constants
+POST_PRE_ICPD_FLAG = 0;
 
 % TEQ criterion
 TEQ_MMSE    = 0;
@@ -267,8 +268,11 @@ switch (equalizer)
         % are accounted.
         gn = (abs(H).^2) ./ (w_norm_n * N0_over_2);
     otherwise
-        gn = (abs(H).^2) / N0_over_2;
-        Ex_red_factor = 1;
+        % When no equalizer is adopted, the ISI/ICI energy per dimension is
+        % taken into account in the bit loading
+        icpd_psd = interferencePsd(p, N, nu, tau, n0, ...
+            Ex_bar, POST_PRE_ICPD_FLAG, windowing);
+        gn = (abs(H).^2) ./ (N0_over_2 + (icpd_psd.'));
 end
 
 %% Water filling
