@@ -245,7 +245,7 @@ fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
     SNRdmt_discrete_db);
 
 % Compare water-filling and discrete-loading
-if (debug && debug_loading && loading)
+if (debug && debug_loading)
     figure
     plot(bn(1:N/2+1), ...
         'linewidth', 1.1)
