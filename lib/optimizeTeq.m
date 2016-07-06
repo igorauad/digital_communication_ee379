@@ -42,7 +42,6 @@ nDelta_length = length(delta_vec);
 objective = NaN * ones(nTap_length, nDelta_length);
 
 gap_db = 10*log10(gap);
-nDim = N + nu;
 
 %% Search
 for i = 1:nTap_length

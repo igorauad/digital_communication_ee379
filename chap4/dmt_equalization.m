@@ -32,12 +32,30 @@ maxNumErrs   = 100;
 maxNumDmtSym = 1e12;
 
 %% Derived computations:
+
+% Number of used real dimensions and tone spacing adjusted by alpha
 N         = N*alpha;
 delta_f   = delta_f/alpha;
-Fs        = N * delta_f;
+% Fs does not change with alpha.
+
+% Sampling frequency and FFT size, based on the oversampling ratio:
+Nfft      = L * N;
+Fs        = Nfft * delta_f;
+% delta_f does not change with L.
+
+% Note the difference between alpha and L. Variable "alpha" is used to
+% increase the density of the channel partitioning, namely reduce the tone
+% spacing solely by increasing the number of used dimensions, while
+% preserving the sampling frequency. In contrast, "L", the oversampling
+% ratio, is used to increase the sampling frequency without altering the
+% number of used dimensions, but only the FFT size. The latter naturally
+% has to change according to "L" because the tone spacing must be
+% preserved.
+
 Ts        = 1 / Fs;
 gap       = 10^(gap_db/10); % Gap in linear scale
-Tsym      = (N + nu) * Ts;  % Symbol Period
+Tofdm     = 1 / delta_f;    % OFDM symbol duration (without CP)
+Tsym      = Tofdm + nu*Ts;  % Cyclic-prefixed multicarrier symbol period
 Rsym      = 1 / Tsym;       % DMT Symbol rate (real dimensions per sec)
 Ex        = Px * Tsym;      % Average DMT symbol energy
 % Recall due to repetition of samples in the prefix, the energy budget used
@@ -53,11 +71,13 @@ OPT_SSNR    = 1;
 OPT_GEO_SNR = 2;
 
 % Normalized FFT Matrix
-Q = (1/sqrt(N))*fft(eye(N));
+Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 
 % Dimensions per subchannel:
 dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
 
+% Vector of used subchannels among the NFFT indices
+used_fft_indices = [1:(N/2), (Nfft - N/2 + 1):Nfft].';
 %% Pulse Response
 
 p = [-.729 .81 -.9 2 .9 .81 .729];
@@ -66,7 +86,9 @@ p = [-.729 .81 -.9 2 .9 .81 .729];
 % channel impulse response and the pre-ADC filtering.
 
 % Pulse frequency response
-H = fft(p, N);
+H = fft(p, Nfft);
+% Store only the response at the used indices of the FFT
+H = H(used_fft_indices);
 
 % Pulse response length
 Lh = length(p);
@@ -95,7 +117,7 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         delta_min = round(maxNumTaps/2); delta_max = maxNumTaps;
 
         [nTaps, delta] = optimizeTeq(OPT_SSNR, p, nu, N0_over_2, ...
-            Ex_bar, gap, N, maxNumTaps, delta_min, delta_max);
+            Ex_bar, gap, Nfft, maxNumTaps, delta_min, delta_max);
         fprintf('Optimal L <= %d:\t %d\n', maxNumTaps, nTaps);
         fprintf('Optimal Delay:  \t %d\n', delta);
 
@@ -123,9 +145,11 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         %   with windowing+overlap this fails.
         %   # 2) Note the feed-foward TEQ at the receiver shapes the
         %   spectrum of the noise. Hence the gain to noise ratio becomes:
-        H_w = fft(w, N);
-        H_eff = fft(p_eff, N);
+        H_w = fft(w, Nfft);
+        H_eff = fft(p_eff, Nfft);
         gn_teq = (abs(H_eff).^2)./(N0_over_2*(abs(H_w).^2));
+        % Store only the used tones
+        gn_teq = gn_teq(used_fft_indices);
 
     otherwise
         % When MMSE-TEQ is not used, at least a bias should be generically
@@ -139,10 +163,13 @@ end
 switch (equalizer)
     case 1
         % Use the effective pulse response in the FEQ
-        H_freq = fft(p_eff, N);
+        H_freq = fft(p_eff, Nfft);
     otherwise
-        H_freq = fft(p, N);
+        H_freq = fft(p, Nfft);
 end
+
+% Store only the response at the used indices of the FFT
+H_freq = H_freq(used_fft_indices);
 
 % Cursor
 switch (equalizer)
@@ -157,7 +184,7 @@ switch (equalizer)
 end
 
 % Corresponding phase shift due to cursor
-phaseShift = exp(1j*2*pi*(n0/N)*(0:N-1));
+phaseShift = exp(1j*2*pi*(n0/Nfft)*(used_fft_indices.' - 1));
 
 % Include the unbiasing factor into the FEQ. Note bias=1 when MMSE-TEQ
 % is not used.
@@ -414,9 +441,9 @@ end
 fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 
 % Preallocate
-X          = zeros(N, nSymbols);
-tx_symbols = zeros(N/2 + 1, nSymbols);
-rx_symbols = zeros(N/2 + 1, nSymbols);
+X          = zeros(Nfft, nSymbols);
+tx_data    = zeros(N/2 + 1, nSymbols);
+rx_data    = zeros(N/2 + 1, nSymbols);
 sym_err_n  = zeros(N/2 + 1, 1);
 
 numErrs = 0; numDmtSym = 0;
@@ -433,27 +460,27 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     % Random Symbol generation
     for k = 1:(N/2 + 1)
-        tx_symbols(k, :) = randi(modOrder(k), 1, nSymbols) - 1;
+        tx_data(k, :) = randi(modOrder(k), 1, nSymbols) - 1;
     end
 
     %% Constellation Encoding
     for k = 1:(N/2 + 1)
         if (modem_n(k) > 0)
         X(k, :) = Scale_n(k) * ...
-            modulator{modem_n(k)}.modulate(tx_symbols(k, :));
+            modulator{modem_n(k)}.modulate(tx_data(k, :));
         end
     end
 
     % Hermitian symmetry
-    X(N/2+2:end, :) = flipud( conj( X(2:N/2, :) ) );
+    X(Nfft - N/2 + 2:Nfft, :) = flipud( conj( X(2:N/2, :) ) );
 
     %% Modulation
 
-    x = sqrt(N) * ifft(X, N);
+    x = sqrt(Nfft) * ifft(X, Nfft);
 
     %% Cyclic extension
 
-    x_ext = [x(N-nu+1:N, :); x];
+    x_ext = [x(Nfft-nu+1:Nfft, :); x];
 
     %% Parallel to serial
 
@@ -548,12 +575,12 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % Note: synchronization introduces a phase shift that should be taken
     % into account in the FEQ.
 
-    nRxSamples = (N+nu)*nSymbols;
+    nRxSamples = (Nfft+nu)*nSymbols;
     y_sync     = z((n0 + 1):(n0 + nRxSamples));
 
     %% Slicing
 
-    y_sliced = reshape(y_sync, N + nu, nSymbols);
+    y_sliced = reshape(y_sync, Nfft + nu, nSymbols);
 
     %% Extension removal
 
@@ -562,22 +589,22 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     %% Regular Demodulation (without decision feedback)
 
     % FFT
-    Y = (1/sqrt(N)) * fft(y_no_ext, N);
+    Y = (1/sqrt(Nfft)) * fft(y_no_ext, Nfft);
 
     % FEQ - One-tap Frequency Equalizer
-    Z = diag(FEQ) * Y;
+    Z = diag(FEQ) * Y(used_fft_indices, :);
 
     %% Constellation decoding (decision)
 
     for k = 1:(N/2 + 1)
         if (modem_n(k) > 0)
-            rx_symbols(k, :) = demodulator{modem_n(k)}.demodulate(...
+            rx_data(k, :) = demodulator{modem_n(k)}.demodulate(...
                 (1/Scale_n(k)) * Z(k, :));
         end
     end
 
     % Symbol error count
-    sym_err_n = sym_err_n + symerr(tx_symbols, rx_symbols, 'row-wise');
+    sym_err_n = sym_err_n + symerr(tx_data, rx_data, 'row-wise');
     % Symbol error rate per subchannel
     ser_n     = sym_err_n / (iTransmission * nSymbols);
     % Per-dimensional symbol error rate per subchannel
