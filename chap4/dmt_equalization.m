@@ -236,18 +236,10 @@ SNR_n_lc           = En_bar_lc .* gn; % SNR per real dimension
 SNR_n_norm_lc      = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
 
 % Bit rate
-Rb = sum(bn_discrete) * Fs/(N + nu);
-% Capacity per real dimension
-cn = 0.5 * log2(1 + SNR_n_lc);
-% Multi-channel capacity, per dimension:
-c = sum(cn) / nDim;
-% Note #1: for the capacity computation, all real dimensions are
-% considered, including the overhead. See the example of (4.208)
-% Note #2: the actual capacity is only obtained for N -> infty, so the
-% above is only an approximation.
+Rb = sum(bn_discrete) / Tsym;
+
 
 fprintf('b_bar:                    \t %g bits/dimension', b_bar_discrete)
-fprintf('\ncapacity:               \t %g bits/dimension', c)
 fprintf('\nBit rate:               \t %g mbps\n', Rb/1e6);
 fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
     SNRdmt_discrete_db);
@@ -264,15 +256,34 @@ if (debug && debug_loading && loading)
     ylabel('Bits');
     set(gca,'XLim',[1 N/2+1]);
 end
+%% Channel Capacity
+% Channel capacity is computed considering the SNR that results from LC
+% discrete loading.
+
+fprintf('\n------------------ Channel Capacity -------------------- \n\n');
+
+% Capacity per real dimension
+cn = 0.5 * log2(1 + SNR_n_lc);
+% Multi-channel capacity, per dimension:
+c = sum(cn) / nDim;
+% Note #1: for the capacity computation, all real dimensions are
+% considered, including the overhead. See the example of (4.208)
+% Note #2: the actual capacity is only obtained for N -> infty, so the
+% above is only an approximation.
+
+fprintf('capacity:               \t %g bits/dimension', c)
+fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * (N+nu) /1e6);
+
 
 %% Analysis of the Error Probability per dimension
-% Comparison between the water-filling and the discrete loading
+% Comparison between the water-filling and the discrete loading in terms of
+% the nearest-neighbors union bound (also known as Union Bound Estimate)
 
 fprintf('\n----------------- Error Probabilities ------------------ \n\n');
 
 % Preallocate
-Pe_bar_n = zeros(N/2 + 1, 1);
-Pe_bar_n_lc   = zeros(N/2 + 1, 1);
+Pe_bar_n    = zeros(N/2 + 1, 1);
+Pe_bar_n_lc = zeros(N/2 + 1, 1);
 
 for k = 1:(N/2 + 1)
     if (dim_per_subchannel(k) == 2)
