@@ -617,7 +617,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     numErrs   = sum(sym_err_n);
     numDmtSym = iTransmission * nSymbols;
 
-    fprintf('Pe_bar:\t%g\t', mean(ser_n_bar));
+    fprintf('Pe_bar:\t%g\t', mean(ser_n_bar(bn_discrete~=0)));
+    % Note: consider only the loaded subchannels in the above
     fprintf('nErrors:\t%g\t', numErrs);
     fprintf('nDMTSymbols:\t%g\n', numDmtSym);
 
