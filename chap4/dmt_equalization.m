@@ -231,7 +231,7 @@ SNR_n_norm = SNR_n ./ (2.^(2*bn_bar) - 1);
 fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n', SNRdmt)
 
 if (equalizer == 1)
-    fprintf('Note: channel shaping function b used for water-filling.\n');
+    fprintf('Note: shortened response was used for water-filling.\n');
 end
 
 %% Discrete-loading: Levin Campello Rate Adaptive
@@ -283,6 +283,7 @@ if (debug && debug_loading)
     ylabel('Bits');
     set(gca,'XLim',[1 N/2+1]);
 end
+
 %% Channel Capacity
 % Channel capacity is computed considering the SNR that results from LC
 % discrete loading.
