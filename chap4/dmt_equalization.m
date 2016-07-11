@@ -302,10 +302,11 @@ c = sum(cn) / nDim;
 fprintf('capacity:               \t %g bits/dimension', c)
 fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * (N+nu) /1e6);
 
-
 %% Analysis of the Error Probability per dimension
 % Comparison between the water-filling and the discrete loading in terms of
-% the nearest-neighbors union bound (also known as Union Bound Estimate)
+% the nearest-neighbors union bound (also known as Union Bound Estimate).
+% Variable "Ne" is used below to denote the average number of Nearest
+% Neighbors per real dimension.
 
 fprintf('\n----------------- Error Probabilities ------------------ \n\n');
 
@@ -323,8 +324,8 @@ for k = 1:(N/2 + 1)
         if ((mod(bn(k),2) ~= 0))
             % For odd b, Hybrid QAM is used:
             M = 2^bn(k);
-            Pe_bar_n(k) = 2*(1 - sqrt(2/M) + 1/(2*M)) * ...
-                qfunc(sqrt( 3*SNR_n_norm(k)) );
+            Ne = 2*(1 - sqrt(2/M) + 1/(2*M));
+            Pe_bar_n(k) = Ne * qfunc(sqrt( 3*SNR_n_norm(k)) );
             % Note: the argument here should be actually:
             %   sqrt((6 * SNR_n(k)) / (2*M -1)),
             % which is approximately equivalent to sqrt( 3*SNR_n_norm(k))
@@ -335,32 +336,33 @@ for k = 1:(N/2 + 1)
             % LC the Pe computation will be tighter.
         else
             % QAM-SQ
-            Pe_bar_n(k) = 2 * (1 - 1/(2^bn_bar(k))) * ...
-                qfunc(sqrt( 3*SNR_n_norm(k)) );
+            Ne = 2 * (1 - 1/(2^bn_bar(k)));
+            Pe_bar_n(k) = Ne * qfunc(sqrt( 3*SNR_n_norm(k)) );
         end
 
         % Levin-Campello (LC):
         if ((mod(bn_discrete(k),2) ~= 0))
             % For odd b, Hybrid QAM is used
             M = 2^bn_discrete(k);
-            Pe_bar_n_lc(k) = 2*(1 - sqrt(2/M) + 1/(2*M)) * ...
-                qfunc(sqrt( (6 * SNR_n_lc(k)) / (2*M -1)) );
+            Ne = 2*(1 - sqrt(2/M) + 1/(2*M));
+            Pe_bar_n_lc(k) = Ne * qfunc(sqrt((6 * SNR_n_lc(k))/(2*M -1)));
             % Note the aforementioned q-function argument for Hybrid QAM
         else
             % QAM-SQ
-            Pe_bar_n_lc(k) = 2 * (1 - 1/(2^bn_bar_lc(k))) * ...
-                qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
+            Ne = 2 * (1 - 1/(2^bn_bar_lc(k)));
+            Pe_bar_n_lc(k) =  Ne * qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
         end
 
     else
         % PAM Nearest-neighbors Union Bound
 
         % Water-filling (with fractional load):
-        Pe_bar_n(k) = 2 * (1 - 1/(2^bn_bar(k))) * ...
-            qfunc(sqrt( 3*SNR_n_norm(k)) );
+        Ne = 2 * (1 - 1/(2^bn_bar(k)));
+        Pe_bar_n(k) = Ne * qfunc(sqrt( 3*SNR_n_norm(k)) );
+
         % Levin-Campello (LC):
-        Pe_bar_n_lc(k) = 2 * (1 - 1/(2^bn_bar_lc(k))) * ...
-            qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
+        Ne = 2 * (1 - 1/(2^bn_bar_lc(k)));
+        Pe_bar_n_lc(k) = Ne * qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
     end
 end
 
