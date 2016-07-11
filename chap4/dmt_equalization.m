@@ -175,7 +175,7 @@ H_freq = H_freq(used_fft_indices);
 switch (equalizer)
     case 1
         % MMSE-TEQ Chosen Delay
-        n0 = delta * L;
+        n0 = delta;
         % The cursor considers the MMSE-TEQ delay.
     otherwise
         [~, iMax] = find(abs(p)>1e-5, 1, 'first');
