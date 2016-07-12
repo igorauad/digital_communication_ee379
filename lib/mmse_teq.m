@@ -60,7 +60,9 @@ end
 
 
 %% Constants
-nu       = length(h) - 1;
+nu       = length(h) - 1; % Channel memory
+% Note: Cioffi uses nu for the target cyclic prefix length. Al Dahir uses
+% it for the channel memory.
 w_length = Nf * l; % Length of the equalizer
 
 % Norm of the impulse_response
