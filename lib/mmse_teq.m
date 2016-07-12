@@ -1,5 +1,8 @@
-function [w, b_opt] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
+function [w, b_opt, SNR, bias] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
 % MMSE TEQ design based on Al-Dhahir's paper in [1]
+%   Designs an optimal target impulse response (TIR) and a corresponding
+%   equalizer that attempts to approximate the shortened impulse response
+%   (SIR) to the TIR with minimum error.
 %
 %   Inputs:
 % h     -> Channel impulse response
@@ -17,10 +20,11 @@ function [w, b_opt] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
 % 1) Nf is stated as the number of "symbols", but in the case of OFDM, it
 % can be interpreted as samples of the IFFT taken at every interval of l
 % samples. In this case, it is less confusing to think only in terms of the
-% number of samples l*Nf
+% number of samples l*Nf.
 %
 % [1] Efficiently Computed Reduced-Parameter Input-Aided MMSE Equalizers
 % for ML Detection: A Unified Approach
+% [2] Cioffi Lecture Notes, Chapter 4
 
 if (nargin > 7)
     if (debug)
@@ -36,7 +40,15 @@ end
 complexity       = 0; % 0 - Full ; 1 - Reduced
 constraint       = 0; % 0 - UEC  ; 1 - UTC
 noise_assumption = 0; % 0 - White; 1 - Colored, WSS;
-input_assumption = 0; % 0 - White symbols; 1 - Colored, WSS;
+
+% When the Sx argument is a matrix, it is assumed to be already the
+% autocorrelation matrix. Otherwise, it is the energy per dimension
+% (equivalent to the spectral density) of the input signal.
+if (numel(Sx) > 1)
+    input_assumption = 1; % 0 - White symbols; 1 - Colored, WSS;
+else
+    input_assumption = 0; % 0 - White symbols; 1 - Colored, WSS;
+end
 
 
 %% Constants
@@ -49,10 +61,24 @@ w_length = Nf * l; % Length of the equalizer
 H = toeplitz([h(1), zeros(1,w_length-1)]',[h,zeros(1,w_length-1)]);
 % Dimensions: (Nf*l) x (Nf*l + nu - 1)
 
+%% Autocorrelation matrices that are derived from function arguments
+% Rxx and Rnn
 
 % Input autocorrelation
 %
-Rxx = Sx * eye( Nf*l + nu);
+
+switch (input_assumption)
+    case 0
+        % For independent symbols and no oversampling (l=1), the
+        % autocorrelation matrix is diagonal and has the constant spectral
+        % density Sx in the main diagonal. If oversampling is applied, then
+        % assuming the input to be at least wide-sense stationary the input
+        % autocorrelation is a Toeplitz matrix.
+        Rxx = Sx * eye( Nf*l + nu);
+    case 1
+        % In this case, Sx is already a matrix equivalent to Rxx
+        Rxx = Sx;
+end
 
 % Noise autocorrelation
 switch (noise_assumption)
@@ -70,6 +96,8 @@ switch (noise_assumption)
         Rnn = toeplitz(sigma);
 end
 
+%% Design
+
 % Input-output cross-correlation:
 Rxy = Rxx * H';
 
@@ -77,7 +105,7 @@ Rxy = Rxx * H';
 Ryy = H * Rxx * H' + Rnn;
 
 % Matrix defined in Eq. (10):
-if (l == 1)
+if (l == 1 && input_assumption == 0)
     % For white input autocorrelation (only applicable for l = 1), i.e.,
     % Rxx = Sx * I, calculation of R_x_pipe_y can be simplified as shown in
     % Section III of [1]. Note it has a single inverse computation, rather
