@@ -37,8 +37,16 @@ else
 end
 
 %% Parameters
-complexity       = 0; % 0 - Full ; 1 - Reduced
-constraint       = 0; % 0 - UEC  ; 1 - UTC
+
+% There are two possible contrainsts: the energy contraint ("EC") and the
+% tap contraint ("TC"). The author of [1] consider unitary contraints for
+% both, and therefore refers to these contraints as "UEC" and "UTC". In
+% [4], the energy contrainst is arbitrary and reasonably considered to be
+% the original pulse response energy, rather than unitary. We adopt this
+% approach here. The only change is the scaling that follows the solution
+% of the MMSE target impulse response.
+constraint       = 0; % 0 - EC  ; 1 - TC
+
 noise_assumption = 0; % 0 - White; 1 - Colored, WSS;
 
 % When the Sx argument is a matrix, it is assumed to be already the
@@ -55,7 +63,8 @@ end
 nu       = length(h) - 1;
 w_length = Nf * l; % Length of the equalizer
 
-%% Design
+% Norm of the impulse_response
+norm_h = norm(h);
 
 % Channel matrix (possibly fractionally spaced):
 H = toeplitz([h(1), zeros(1,w_length-1)]',[h,zeros(1,w_length-1)]);
@@ -129,13 +138,18 @@ if (~constraint) % UEC
     % Find the minimum eigenvalue:
     [lambda_min, i_opt] = min(diag(Lambda));
     % Find the optimal target impulse response (TIR):
-    b_opt = B(:,i_opt)';
+    b_opt = norm_h * B(:,i_opt)'; % Note this is b_opt' (transpose)
+    % Note ||h|| is used to scale the optimal TIR such that it satisfies
+    % the contraint of having energy ||h||^2.
+
     % Padded TIR:
     b_tilde_opt = [zeros(1, delta), b_opt, zeros(1, s)];
     % Then, obtain the equalizer from Eq. (21):
     w = b_tilde_opt * Rxy * inv(Ryy);
     % Find the MMSE:
-    mmse = lambda_min;
+    mmse = norm_h^2 * lambda_min;
+    % Note a factor of ||h|| multiplying each b_opt leads to the MMSE being
+    % scaled by ||h||^2.
 end
 
 %% Debug Plots
