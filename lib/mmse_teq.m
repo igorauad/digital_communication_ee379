@@ -1,4 +1,4 @@
-function [w, SNR, bias] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
+function [w, SNRmfb] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
 % MMSE TEQ design based on Al-Dhahir's paper in [1]
 %   Designs an optimal target impulse response (TIR) and a corresponding
 %   equalizer that attempts to approximate the shortened impulse response
@@ -14,6 +14,9 @@ function [w, SNR, bias] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
 % sigma -> Noise energy per dimensions
 % debug -> Enable debug plots
 %
+%   Output:
+% w      -> Equalizer
+% SNRmfb -> Matched-filter bound SNR when using equalization
 %
 % Notes:
 % 1) Nf is stated as the number of "symbols", but in the case of OFDM, it
@@ -151,6 +154,50 @@ if (~constraint) % UEC
     mmse = norm_h^2 * lambda_min;
     % Note a factor of ||h|| multiplying each b_opt leads to the MMSE being
     % scaled by ||h||^2.
+
+    %% Unbiased SNR MFB after Equalization
+    % The design adopted for the equalizer aimed to guarantee that the SIR
+    % matches the TIR within a window of interest. However, the result
+    % generally differs from the TIR by a scaling fator. Consequently, the
+    % MMSE includes not only the uncorrelated error parcel due to noise,
+    % but also the error between conv(b,x) - conv(w,y) solely due to the
+    % scaling factor, i.e. because conv(w,y) = bias * conv(b,x). The
+    % scaling factor is deemed as the "bias" of the equalizer, which would
+    % lead to a "biased SNR" if it was computed as ||b_opt||^2*Sx/MMSE
+    % directly. The bias scales the signal energy at the receiver to:
+    %   bias^2 * ||b_opt||^2 * Sx
+    % but also alters the denominator of the SNR. More specifically, it
+    % both introduces the following distortion parcel in the denominator of
+    % the SNR (the MMSE):
+    %   (1 - bias)^2 * ||b_opt||^2 * Sx,
+    % and scales the uncorrelated noise energy per dimension to:
+    %    bias^2 * (N0/2).
+    % The latter two effects are implicit in the MMSE, which can be thought
+    % of as a "biased error".
+    %
+    % Finally, since the biased SNR can be higher than the unbiased (upper
+    % bounded by SNRunbiased + 1), the unbiased SNR is more informative for
+    % fair comparison of receivers. It is derived in the sequel.
+
+    sir = conv(h, w); % Shortened impulse response
+
+    % The bias in the equalizer is the scaling factor that causes a
+    % discrepancy between the SIR and the TIR
+    bias = sir(delta+1) / b_opt(1); % Bias. See (4.334) in [2]
+
+    % Signal-dependent distortion parcel that is included in the MMSE due
+    % to the bias, also described in (4.338) of [2]:
+    sig_dist_mmse = (1 - bias)^2 * norm(b_opt)^2 * Sx;
+
+    % The first step to obtain the unbiased average error energy is to
+    % remove the above distortion parcel, which leads to bias^2 * (N0/2):
+    biased_noise = mmse - sig_dist_mmse;
+
+    % Finally, the unbiased average error energy can be obtained:
+    unbiased_error_energy = biased_noise / bias^2;
+
+    % Unbiased SNR MFB:
+    SNRmfb = norm(b_opt)^2 * Sx / unbiased_error_energy;
 end
 
 %% Debug Plots
