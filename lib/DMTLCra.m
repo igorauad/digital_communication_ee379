@@ -1,4 +1,4 @@
-function [En,bn] = DMTLCra(gn, Ex_bar, N, gap_db, max_load)
+function [En,bn] = DMTLCra(gn, Ex_bar, N, gap_db, max_load, noDcNyquist)
 %
 % EE379C 2008 Spring
 %
@@ -21,6 +21,9 @@ function [En,bn] = DMTLCra(gn, Ex_bar, N, gap_db, max_load)
 if (nargin < 5)
     max_load = inf;
 end
+if (nargin < 6)
+    noDcNyquist = 0;
+end
 
 gap = 10^(gap_db/10);
 
@@ -40,15 +43,15 @@ E_so_far=0;
 %decision table - QAM and PAM
 decision_table(2:N/2)=2*gap./gn(2:N/2);
 % Gap formula incremental energies.
-if gn(1) ~= 0
-    decision_table(1)=3*gap/gn(1);
-else
+if (noDcNyquist)
     decision_table(1)=inf;
-end
-if gn(N/2+1) ~=0
-    decision_table(N/2+1)=3*gap/gn(N/2+1);
 else
+    decision_table(1)=3*gap/gn(1);
+end
+if (noDcNyquist)
     decision_table(N/2+1)=inf;
+else
+    decision_table(N/2+1)=3*gap/gn(N/2+1);
 end
 %decision_table: debugging purpose
 while(1)

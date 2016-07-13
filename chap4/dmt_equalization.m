@@ -239,10 +239,16 @@ end
 fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
 % Rate-adaptive Levin-Campello loading:
+noDcNyquist = 1; % Avoid loading DC and Nyquist subchannels
 [En_discrete, bn_discrete] = DMTLCra(...
     gn(1:N/2 + 1),...
     Ex_bar,...
-    N, gap_db, max_load);
+    N, gap_db, ...
+    max_load,...
+    noDcNyquist);
+
+% Save a vector with the index of the subchannels that are loaded
+n_loaded = find(bn_discrete ~= 0);
 
 % Energy per real dimension
 En_bar_lc = [En_discrete, fliplr(conj(En_discrete(2:N/2)))] ...
@@ -314,7 +320,7 @@ fprintf('\n----------------- Error Probabilities ------------------ \n\n');
 Pe_bar_n    = zeros(N/2 + 1, 1);
 Pe_bar_n_lc = zeros(N/2 + 1, 1);
 
-for k = 1:(N/2 + 1)
+for k = n_loaded
     if (dim_per_subchannel(k) == 2)
         % QAM Nearest-neighbors Union Bound assuming QAM-SQ constellations
         % for both even and odd loads. "Hybrid QAM" constellations are used
@@ -377,8 +383,10 @@ if (debug && debug_Pe)
 end
 
 fprintf('Approximate NNUB Pe per dimension:\n');
-fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n,'omitnan'));
-fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc,'omitnan'));
+fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n(n_loaded), ...
+    'omitnan'));
+fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc(n_loaded), ...
+    'omitnan'));
 
 %% Modulators
 
@@ -420,7 +428,7 @@ end
 
 modem_n = zeros(N/2 + 1, 1);
 
-for k = 1:(N/2 + 1)
+for k = n_loaded % Iterate over loaded subchannels
     if (dim_per_subchannel(k) == 2)
         iModem = find (twoDim_const_orders == modOrder(k));
         if (iModem)
@@ -437,7 +445,7 @@ end
 
 %% Energy loading (constellation scaling factors) and minimum distances
 
-[ Scale_n, dmin_n ] = dmtSubchanScaling(modulator, modem_n, En_discrete );
+[Scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, En_discrete);
 
 %% Monte-carlo
 
@@ -462,15 +470,15 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     iTransmission = iTransmission + 1;
 
     % Random Symbol generation
-    for k = 1:(N/2 + 1)
+    for k = n_loaded
         tx_data(k, :) = randi(modOrder(k), 1, nSymbols) - 1;
     end
 
     %% Constellation Encoding
-    for k = 1:(N/2 + 1)
+    for k = n_loaded
         if (modem_n(k) > 0)
-        X(k, :) = Scale_n(k) * ...
-            modulator{modem_n(k)}.modulate(tx_data(k, :));
+            X(k, :) = Scale_n(k) * ...
+                modulator{modem_n(k)}.modulate(tx_data(k, :));
         end
     end
 
@@ -599,7 +607,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Constellation decoding (decision)
 
-    for k = 1:(N/2 + 1)
+    for k = n_loaded
         if (modem_n(k) > 0)
             rx_data(k, :) = demodulator{modem_n(k)}.demodulate(...
                 (1/Scale_n(k)) * Z(k, :));
@@ -617,7 +625,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     numErrs   = sum(sym_err_n);
     numDmtSym = iTransmission * nSymbols;
 
-    fprintf('Pe_bar:\t%g\t', mean(ser_n_bar(bn_discrete~=0)));
+    fprintf('Pe_bar:\t%g\t', mean(ser_n_bar(n_loaded)));
     % Note: consider only the loaded subchannels in the above
     fprintf('nErrors:\t%g\t', numErrs);
     fprintf('nDMTSymbols:\t%g\n', numDmtSym);
