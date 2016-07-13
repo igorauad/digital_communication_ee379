@@ -1,4 +1,4 @@
-function [w, b_opt, SNR, bias] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
+function [w, SNR, bias] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
 % MMSE TEQ design based on Al-Dhahir's paper in [1]
 %   Designs an optimal target impulse response (TIR) and a corresponding
 %   equalizer that attempts to approximate the shortened impulse response
@@ -11,9 +11,8 @@ function [w, b_opt, SNR, bias] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
 % Nf    -> Number of output "symbols"
 % Nb    -> Target impulse response (TIR) memory (length will be Nb + 1)
 % Sx    -> Tx energy per dimension (equivalent to the PSD)
-%
-%   Optional Inputs
-% Rxx -> autocorrelation of the transmit samples
+% sigma -> Noise energy per dimensions
+% debug -> Enable debug plots
 %
 %
 % Notes:
