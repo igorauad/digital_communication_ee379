@@ -1,4 +1,4 @@
-function [w, SNR, bias] = ssnr_teq(h, l, delta, Nf, nu, debug)
+function [w, SSNR] = ssnr_teq(h, l, delta, Nf, nu, debug)
 % SSNR TEQ design based on Melsa's paper in [1]
 %   Designs an optimal equalizer such that the energy of the shortened
 %   impulse response (SIR) outside the cyclic prefix (window) is minimum
@@ -13,6 +13,9 @@ function [w, SNR, bias] = ssnr_teq(h, l, delta, Nf, nu, debug)
 % nu    -> Cyclic prefix length, equivalent to the TIR memory
 % debug -> Enable debug plots
 %
+%   Output:
+% w     -> Equalizer
+% SSNR  -> Shortening SNR
 %
 % [1] P. J. W. Melsa, R. C. Younce and C. E. Rohrs, "Impulse response
 %     shortening for discrete multitone transceivers," in IEEE Transactions
@@ -77,6 +80,9 @@ l_min = Eigvec_c(:,i_opt); % Note this is b_opt' (transpose)
 % Optimum equalizer:
 w = inv(sqrt_B') * l_min;
 w = w.'; % Output as row vector
+
+% Shortening SNR:
+SSNR = teqSSNR( w, h, delta, nu );
 
 %% Debug Plots
 
