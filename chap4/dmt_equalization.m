@@ -146,10 +146,15 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         %   to a portion that can be covered by the guard band. However,
         %   with windowing+overlap this fails.
         %   # 2) Note the feed-foward TEQ at the receiver shapes the
-        %   spectrum of the noise. Hence the gain to noise ratio becomes:
+        %   spectrum of the noise, so the noise PSD becomes |H_w|^2 * N0/2,
+        %   where H_w is given below:
         H_w = fft(w, Nfft);
+        %   # 3) Meanwhile, the transmit signal is subject to the
+        %   compounded response of the channel + equalizer, namely the
+        %   effective response:
         H_eff = fft(p_eff, Nfft);
-        gn_teq = (abs(H_eff).^2)./(N0_over_2*(abs(H_w).^2));
+        %   The gain to noise ratio at the receiver becomes:
+        gn_teq = (abs(H_eff).^2)./(N0_over_2 * abs(H_w).^2);
         % Store only the used tones
         gn_teq = gn_teq(used_fft_indices);
 
