@@ -157,11 +157,6 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         gn_teq = (abs(H_eff).^2)./(N0_over_2 * abs(H_w).^2);
         % Store only the used tones
         gn_teq = gn_teq(used_fft_indices);
-
-    otherwise
-        % When MMSE-TEQ is not used, at least a bias should be generically
-        % defined:
-        bias = 1;
 end
 
 %% 1-tap Frequency Equalizer
@@ -193,9 +188,8 @@ end
 % Corresponding phase shift due to cursor
 phaseShift = exp(1j*2*pi*(n0/Nfft)*(used_fft_indices.' - 1));
 
-% Include the unbiasing factor into the FEQ. Note bias=1 when MMSE-TEQ
-% is not used.
-FEQ    = (1/bias) * (1 ./ (H_freq .* phaseShift));
+% Frequency Equalizer
+FEQ    = (1 ./ (H_freq .* phaseShift));
 
 %% SNR for unitary energy transmit symbol
 
