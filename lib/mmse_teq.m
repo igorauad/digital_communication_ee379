@@ -1,4 +1,4 @@
-function [w, SNRmfb] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
+function [w, SNRmfb] = mmse_teq(h, l, delta, Nf, Nb, xx, sigma, debug)
 % MMSE TEQ design based on Al-Dhahir's paper in [1]
 %   Designs an optimal target impulse response (TIR) and a corresponding
 %   equalizer that attempts to approximate the shortened impulse response
@@ -10,7 +10,7 @@ function [w, SNRmfb] = mmse_teq(h, l, delta, Nf, Nb, Sx, sigma, debug)
 % delta -> Delay
 % Nf    -> Number of output "symbols"
 % Nb    -> Target impulse response (TIR) memory (length will be Nb + 1)
-% Sx    -> Tx energy per dimension (equivalent to the PSD)
+% xx    -> Tx energy per dimension (scalar) or input autocorrelation matrix
 % sigma -> Noise energy per dimensions
 % debug -> Enable debug plots
 %
@@ -54,7 +54,7 @@ noise_assumption = 0; % 0 - White; 1 - Colored, WSS;
 % When the Sx argument is a matrix, it is assumed to be already the
 % autocorrelation matrix. Otherwise, it is the energy per dimension
 % (equivalent to the spectral density) of the input signal.
-if (numel(Sx) > 1)
+if (numel(xx) > 1)
     input_assumption = 1; % 0 - White symbols; 1 - Colored, WSS;
 else
     input_assumption = 0; % 0 - White symbols; 1 - Colored, WSS;
@@ -84,13 +84,17 @@ switch (input_assumption)
     case 0
         % For independent symbols and no oversampling (l=1), the
         % autocorrelation matrix is diagonal and has the constant spectral
-        % density Sx in the main diagonal. If oversampling is applied, then
-        % assuming the input to be at least wide-sense stationary the input
-        % autocorrelation is a Toeplitz matrix.
+        % density Sx in the main diagonal.
+        Sx = xx;
         Rxx = Sx * eye( Nf*l + nu);
+        % Note that if oversampling is applied, assuming the input to be at
+        % least wide-sense stationary the input autocorrelation is a
+        % Toeplitz matrix.
     case 1
-        % In this case, Sx is already a matrix equivalent to Rxx
-        Rxx = Sx;
+        % In this case, xx passe as argument is already a matrix equivalent
+        % to Rxx:
+        Rxx = xx;
+        Sx = Rxx(1,1);
 end
 
 % Noise autocorrelation
