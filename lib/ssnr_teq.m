@@ -53,21 +53,32 @@ H = convmtx(h.', t);
 win_indexes = delta + 1 : delta + nu + 1;
 H_win = H(win_indexes, :);
 % Has dimensions (nu + 1) x t
+% Assuming t < nu, H_win is a skinny matrix
 
 H_wall = [ H(1:delta, :); H(delta + nu + 2:end, :)];
 % Has dimensions (M + t -nu -2) x t
+% Assuming M > nu + 2, H_wall is also a skinny matrix.
 
 % Symmetric and positive semidefinite matrices of (5) and (6) in [1]:
 A = H_wall' * H_wall;
 B = H_win' * H_win;
-
-% [Q, Lambda] = eig(B);
-% sqrt_B = Q*sqrt(Lambda);
+% Both are t x t matrices.
+% Matrix B must be invertible, but this is not necessarily true.
+%
+% Note:
+% x' * A' * A * x = (A * x)' * (A * x)
+% Since A*x is a (t x 1) column vector, the above is the norm of the
+% vector, which is necessarily greater than or equal to 0.
 
 % Cholesky decomposition:
-sqrt_B = chol(B,'lower'); % sqrt_B * sqrt_B' = B
-% Note: B must be full rank and positive semidefinite matrix for the
+[Q, Lambda] = eig(B);
+sqrt_B = Q*sqrt(Lambda);
+% Note 1: B must be full rank and positive semidefinite matrix for the
 % Cholesky decomposition to exit.
+%
+% Note 2: The sqrt(B) could also be computed by the function
+% chol(B,'lower'), however this function returns an error when B is not
+% full rank, so the aproach used above was preferred.
 
 C = inv(sqrt_B) * A * inv(sqrt_B');
 
