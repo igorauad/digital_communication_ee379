@@ -1,6 +1,6 @@
 %% Example 4.8.2 - Full-band TEQ
 clearvars, clc
-addpath('../lib/')
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 128;     % FFT size and the number of used real dimensions

@@ -6,7 +6,7 @@
 % to design transmit/receive basis functions.
 
 clearvars, clc
-addpath('../lib/')
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 8;       % FFT size and the number of subchannels

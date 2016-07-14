@@ -1,6 +1,6 @@
 %% DMT Equalization Analysis through Monte-Carlo Simulation
 clearvars, clc
-addpath('../lib/')
+addpath(genpath('../lib'))
 
 %% Debug levels
 debug               = 1;  % Enable debug information

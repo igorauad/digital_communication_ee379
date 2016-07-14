@@ -1,6 +1,6 @@
 %% Example 4.5.1 - Vector Coding
-
 clearvars, clc
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 8;       % FFT size and the number of subchannels

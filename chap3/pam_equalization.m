@@ -19,7 +19,7 @@
 %
 
 clearvars, close all;
-addpath('../lib/')
+addpath(genpath('../lib'))
 
 % Parameters
 N           =   1;      % Dimensions per symbol

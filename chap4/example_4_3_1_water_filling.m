@@ -1,4 +1,6 @@
 %% Example 4.3.1 - Water filling
+clearvars, clc
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 8;    % FFT size and the number of dimensions
