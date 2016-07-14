@@ -9,6 +9,7 @@ debug_tone          = 16; % Tone whose constellation is debugged
 debug_Pe            = 1;  % Debug error probabilities
 debug_loading       = 0;  % Debug bit loading
 debug_tx_energy     = 0;  % Debug transmit energy
+debug_teq           = 0;  % Debug TEQ design
 
 %% Parameters
 alpha      = 1;         % Increase FFT size by this factor preserving Fs
@@ -25,8 +26,7 @@ nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
 max_load   = inf;        % Maximum allowed bit load for each subchannel
 equalizer  = 0;         % 0 - None; 1) MMSE-TEQ
 % MMSE-TEQ Parameters
-maxNumTaps = 20;        % Maixmum allowed feed-forward TEQ length
-filtertype = 1;         % 1 = FIR; 0 = IIR
+teqType    = 0;         % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
 % Monte-Carlo Parameters
 maxNumErrs   = 100;
 maxNumDmtSym = 1e12;
@@ -65,10 +65,10 @@ Ex_bar    = Ex / nDim;      % Energy per real dimension
 
 %% Constants
 
-% TEQ optimization criterion
-OPT_MMSE    = 0;
-OPT_SSNR    = 1;
-OPT_GEO_SNR = 2;
+% TEQ criterion
+TEQ_MMSE    = 0;
+TEQ_SSNR    = 1;
+TEQ_GEO_SNR = 2;
 
 % Normalized FFT Matrix
 Q = (1/sqrt(Nfft))*fft(eye(Nfft));
@@ -108,28 +108,30 @@ switch (equalizer)
 fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
         if (nu >= (Lh - 1))
-           error('MMSE-TEQ is unecessary. CP is already sufficient!');
+            error('MMSE-TEQ is unecessary. CP is already sufficient!');
         end
 
         % Search optimum length and delay for the TEQ design
-
-        % Delay range:
-        delta_min = round(maxNumTaps/2); delta_max = maxNumTaps;
-
-        [nTaps, delta] = optimizeTeq(OPT_SSNR, p, nu, N0_over_2, ...
-            Ex_bar, gap, Nfft, maxNumTaps, delta_min, delta_max);
-        fprintf('Optimal L <= %d:\t %d\n', maxNumTaps, nTaps);
-        fprintf('Optimal Delay:  \t %d\n', delta);
+        [nTaps, delta] = optimizeTeq(teqType, p, nu, L, N0_over_2, ...
+            Ex_bar, Nfft, debug_teq);
+        fprintf('Optimal Equalizer Length:\t %d\n', nTaps);
+        fprintf('Optimal Delay:           \t %d\n', delta);
 
         % Design final TEQ
-        [w, b, SNRteq, bias] = ...
-            teq(p, nTaps, nu, delta, N0_over_2, Ex_bar, filtertype);
+        switch (teqType)
+            case TEQ_MMSE
+                [w, SNRteq] = ...
+                    mmse_teq(p, L, delta, floor(nTaps/L), nu, Ex_bar, ...
+                    N0_over_2, debug_teq);
+                fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
+            case TEQ_SSNR
+                w = ssnr_teq(p, L, delta, floor(nTaps/L), nu, debug_teq);
+        end
+
 
         if(~isreal(w))
             warning('MMSE-TEQ designed with complex taps');
         end
-
-        fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
 
         % New effective channel:
         p_eff = conv(p,w);
