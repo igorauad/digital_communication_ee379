@@ -25,6 +25,7 @@ delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
 max_load   = inf;        % Maximum allowed bit load for each subchannel
 equalizer  = 0;         % 0 - None; 1) MMSE-TEQ
+noDcNyquist= 1;         % Flag to avoid loading DC and Nyquist subchannels
 % MMSE-TEQ Parameters
 teqType    = 0;         % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
 % Monte-Carlo Parameters
@@ -240,7 +241,6 @@ end
 fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
 % Rate-adaptive Levin-Campello loading:
-noDcNyquist = 1; % Avoid loading DC and Nyquist subchannels
 [En_discrete, bn_discrete] = DMTLCra(...
     gn(1:N/2 + 1),...
     Ex_bar,...
@@ -271,7 +271,6 @@ SNR_n_norm_lc      = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
 
 % Bit rate
 Rb = sum(bn_discrete) / Tsym;
-
 
 fprintf('b_bar:                    \t %g bits/dimension', b_bar_discrete)
 fprintf('\nBit rate:               \t %g mbps\n', Rb/1e6);
