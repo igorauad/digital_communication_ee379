@@ -217,6 +217,9 @@ if (show_plots)
     legend('SIR', 'TIR')
     title('Shortened vs. target impulse response');
     ylabel('Amplitude')
+    % Set ticks marking the beginning and end of the TIR "window"
+    set(gca, 'XTick', sort([delta + 1, delta + Nb + 1]));
+    grid on
 end
 
 end

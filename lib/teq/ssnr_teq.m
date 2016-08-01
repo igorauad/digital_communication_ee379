@@ -105,6 +105,9 @@ if (show_plots)
     xlabel('Index')
     title('Shortened impulse response');
     ylabel('Amplitude')
+    % Set ticks marking the beginning and end of the TIR "window"
+    set(gca, 'XTick', sort([delta + 1, delta + nu + 1]));
+    grid on
 end
 
 end
