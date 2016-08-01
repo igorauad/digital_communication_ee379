@@ -138,8 +138,8 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         p_eff = conv(p,w);
 
         % Shortening SNR:
-        ssnr = teqSSNR( w, p, delta, nu );
-        fprintf('SSNR:\t %g dB\n', 10*log10(ssnr));
+        ssnr_w = ssnr( w, p, delta, nu );
+        fprintf('SSNR:\t %g dB\n', 10*log10(ssnr_w));
 
         % Notes:
         %   # 1) The water-filling solution assumes no ISI/ICI. This is

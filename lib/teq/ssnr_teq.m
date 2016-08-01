@@ -93,7 +93,7 @@ w = inv(sqrt_B') * l_min;
 w = w.'; % Output as row vector
 
 % Shortening SNR:
-SSNR = teqSSNR( w, h, delta, nu );
+SSNR = ssnr( w, h, delta, nu );
 
 %% Debug Plots
 
