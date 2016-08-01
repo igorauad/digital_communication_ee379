@@ -118,11 +118,8 @@ for i = 1:nTap_length
     % Number of taps
     nTaps = nTap_vec(i);
 
-    % The delay has to be less than or equal to the number of taps
-    iDeltaLength = sum(delta_vec <= nTaps);
-
     % Search delay
-    for k = 1:iDeltaLength
+    for k = 1:length(delta_vec)
         % Delay
         delta = delta_vec(k);
 
