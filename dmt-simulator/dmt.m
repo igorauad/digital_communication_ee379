@@ -24,7 +24,7 @@ gap_db     = 8.8;       % SNR gap to capacity (dB)
 delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
 max_load   = inf;        % Maximum allowed bit load for each subchannel
-equalizer  = 0;         % 0 - None; 1) MMSE-TEQ
+equalizer  = 0;         % 0 - None; 1) TEQ
 noDcNyquist= 1;         % Flag to avoid loading DC and Nyquist subchannels
 % MMSE-TEQ Parameters
 teqType    = 0;         % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
@@ -69,7 +69,6 @@ Ex_bar    = Ex / nDim;      % Energy per real dimension
 % TEQ criterion
 TEQ_MMSE    = 0;
 TEQ_SSNR    = 1;
-TEQ_GEO_SNR = 2;
 
 % Normalized FFT Matrix
 Q = (1/sqrt(Nfft))*fft(eye(Nfft));
@@ -142,10 +141,12 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         fprintf('SSNR:\t %g dB\n', 10*log10(ssnr_w));
 
         % Notes:
-        %   # 1) The water-filling solution assumes no ISI/ICI. This is
-        %   safe provided that the TEQ constrains the pulse response energy
-        %   to a portion that can be covered by the guard band. However,
-        %   with windowing+overlap this fails.
+        %   # 1) The water-filling solution assumes no ISI/ICI. Even though
+        %   the TEQ constrains the pulse response energy to a portion that
+        %   can be covered by the guard band (commonly referred to the
+        %   "window" of the SIR), the out-of-window response of the
+        %   shortened response may still be significant and introduce
+        %   non-negligible ISI/ICI.
         %   # 2) Note the feed-foward TEQ at the receiver shapes the
         %   spectrum of the noise, so the noise PSD becomes |H_w|^2 * N0/2,
         %   where H_w is given below:
@@ -156,8 +157,15 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         H_eff = fft(p_eff, Nfft);
         %   The gain to noise ratio at the receiver becomes:
         gn_teq = (abs(H_eff).^2)./(N0_over_2 * abs(H_w).^2);
-        % Store only the used tones
+        %   Store only the used tones
         gn_teq = gn_teq(used_fft_indices);
+        %   Finally, note that because H_eff = H .* H_w, the above
+        %   gain-to-noise ratio tends to be equivalent to (when H_W is
+        %   non-zero):
+        %       gn = (abs(H).^2) / N0_over_2;
+        %   Ultimately, the gain-to-noise ratio is not being affected by
+        %   the TEQ in the expression. This can be the fallacy in the
+        %   model, specially regarding the frequency notches.
 end
 
 %% 1-tap Frequency Equalizer
