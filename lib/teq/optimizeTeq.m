@@ -75,6 +75,8 @@ end
 % Vector of TEQ lengths:
 nTap_vec = minTaps:maxTaps;
 
+fprintf('Optimizing TEQ length between %d and %d\n', minTaps, maxTaps);
+
 %% Delay Range
 % Desired delay is advised in [3] to be the location of nu-length window of
 % channel with largest energy + half the length of the shortener.
@@ -99,6 +101,8 @@ delta_max  = iWinCenter + ceil(maxTaps/2);
 
 % Vector of delays:
 delta_vec  = delta_min:delta_max;
+
+fprintf('Optimizing delay between %d and %d\n', delta_min, delta_max);
 
 %% Initialize
 
