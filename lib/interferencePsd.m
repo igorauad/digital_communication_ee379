@@ -62,7 +62,6 @@ pre_isi_summation = zeros(N,1); % Summation from psd formula
 if Lcp < Lh-1 % If post-cursor ISI and ICI occurs:
 
     if(WINDOWING)
-
         for phi = (n0 + (Lcp - Lcs) + 1) : L
             mu = phi - (n0 + (Lcp - Lcs) + 1);
             w_index =  symbolSize - mu;
@@ -72,19 +71,14 @@ if Lcp < Lh-1 % If post-cursor ISI and ICI occurs:
                 (abs(window(w_index)).^2)*(abs(Hphi).^2);
             % The previous line partially implements equation (10) from
             % the reference paper.
-
-
         end
     else
-
         for phi = (n0 + Lcp + 1) : (Lh-1)
-
             Hphi = fft(h( (phi+1) : end ), N, 1); %FFT of the channel tail
             % phi + 1 - to convert the MATLAB indexing
             isi_summation = isi_summation + (abs(Hphi).^2);
             % The previous line partially implements equation (10) from
             % the reference paper.
-
         end
     end
 

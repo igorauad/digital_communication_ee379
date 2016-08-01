@@ -99,7 +99,7 @@ switch (channelChoice)
     case 1
         % D2-H2
         N_old = N;
-        load('/Users/igorfreire/Documents/Laps/gfast_simulator/Channel_Model/data/all_models_106mhz.mat');
+        load('/Users/igorfreire/Documents/Lasse/gfast_simulator/Channel_Model/data/all_models_106mhz.mat');
         N = N_old;
         iModel = 2;
         H_herm = [H(:,iModel,iModel); conj(flipud(H(2:end-1,iModel,iModel)))];
@@ -112,7 +112,7 @@ switch (channelChoice)
         p = truncateCir(h).';
     case 2
         % D2-H1
-        load('/Users/igorfreire/Documents/Laps/gfast_simulator/Cables/D2-H1.mat');
+        load('/Users/igorfreire/Documents/Lasse/gfast_simulator/Cables/D2-H1.mat');
         h = real(ifft(H));
 
         if (any(imag(ifft(H, N)) > 0))
@@ -176,11 +176,6 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
                 w = ssnr_teq(p, L, delta, floor(nTaps/L), nu, debug_teq);
         end
 
-
-        % Cursor
-        n0 = (delta * L);
-        fprintf('Chosen cursor:\t%d\n',n0);
-
         if(~isreal(w))
             warning('MMSE-TEQ designed with complex taps');
         end
@@ -221,20 +216,13 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
     case 2
 fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
-        bias = 1;
         FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
         w_norm_n =  FreqPrecoder.wk;
     case 3
 fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
-        bias = 1;
         TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, N,...
             tdPrecoderPostCursor, windowing);
         w_norm_n =  TimePrecoder.ici.wk;
-
-    otherwise
-        % When MMSE-TEQ is not used, at least a bias should be generically
-        % defined:
-        bias = 1;
 end
 
 %% 1-tap Frequency Equalizer
@@ -260,7 +248,6 @@ switch (equalizer)
     otherwise
         [~, iMax] = find(abs(p)>1e-5, 1, 'first');
         n0 = iMax - 1;
-
 end
 
 % Corresponding phase shift due to cursor
