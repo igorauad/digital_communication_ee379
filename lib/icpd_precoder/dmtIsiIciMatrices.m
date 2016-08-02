@@ -64,12 +64,10 @@ Ht = toeplitz([p(end) zeros(1, L-(nu-tau)-n0-1)], ...
 W_w = diag(dmtWindow(end-delta+1:end));
 
 % Post-cursor ISI Matrix
-if (n0 >= tau)
-    Hisi( 1:(delta), (N - L + nu + 1):(N + tau - n0)) = Ht*W_w;
-else
+Hisi( 1:(delta), (N - L + nu + 1):(N + tau - n0)) = Ht*W_w;
+if (n0 < tau)
     % When n0 < tau, the matrix has to be circularly shifted
     shiftBy = tau - n0;
-    Hisi(1:(delta), (N - L + nu + 1):(N + tau - n0) ) = Ht*W_w;
     Hisi = Hisi(:,shiftBy+1:end);
     Hisi = circshift(Hisi, [0, shiftBy]);
 end

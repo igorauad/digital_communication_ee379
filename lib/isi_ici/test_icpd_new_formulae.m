@@ -89,11 +89,10 @@ Ht_windowed = Ht * W_t;
 % identity.
 
 % Post-cursor ISI
-if (n0 >= tau)
-    Hisi(1:(delta), (Nfft - L + nu + 1):(Nfft + tau - n0) ) = Ht_windowed;
-else
+Hisi(1:(delta), (Nfft - L + nu + 1):(Nfft + tau - n0) ) = Ht_windowed;
+if (n0 < tau)
+    % When n0 < tau, the matrix has to be circularly shifted
     shiftBy = tau - n0;
-    Hisi(1:(delta), (Nfft - L + nu + 1):(Nfft + tau - n0) ) = Ht_windowed;
     Hisi = Hisi(:,shiftBy+1:end);
     Hisi = circshift(Hisi, [0, shiftBy]);
 end
