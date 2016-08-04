@@ -4,6 +4,17 @@ function [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(p, n0, nu, tau, N, preCursor,
 % [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(h, n0, nu, tau, N, ...
 %                                           preCursor, windowing)
 %
+%   Computes the ISI and ICI matrices such that the post-cursor ISI and ICI
+%   are given by:
+%       y_isi     = Hisi * circshift(x, -tau),
+%       y_postIci = Hici * x,
+%   and the pre-cursor ISI/ICI are given by:
+%       y_tilde_ici = HpreIci * x;
+%       y_tilde_isi = HpreIsi * circshift(x, nu);
+%
+%   IMPORTANT: note that the circular shifts applied to x for post-cursor
+%   and pre-cursor ISI are assumed to be different.
+%
 %   Input Parameters
 % p                 Channel Pulse Response
 % n0                CIR delay (index of its peak)
@@ -56,24 +67,24 @@ assert(delta > 0, 'Post-cursor ICPD does not occur');
 % Window
 dmtWindow = designDmtWindow(N, nu, tau);
 
-% Post-cursor ISI core matrix
-Ht = toeplitz([p(end) zeros(1, L-(nu-tau)-n0-1)], ...
+% Core Convolution (Toeplitz) Matrix
+Ht = toeplitz([p(end) zeros(1, delta-1)], ...
     flipud(p((nu - tau + n0 + 2):end)));
 
-% Window
+% Window Diagonal Matrix
 W_w = diag(dmtWindow(end-delta+1:end));
 
+% Windowed Core Matrix
+Ht_windowed = Ht * W_w;
+
 % Post-cursor ISI Matrix
-Hisi( 1:(delta), (N - L + nu + 1):(N + tau - n0)) = Ht*W_w;
-if (n0 < tau)
-    % When n0 < tau, the matrix has to be circularly shifted
-    shiftBy = tau - n0;
-    Hisi = Hisi(:,shiftBy+1:end);
-    Hisi = circshift(Hisi, [0, shiftBy]);
-end
+Hisi(1:delta, (N - delta + 1):N ) = Ht_windowed;
+% It is assumed that the column-vector DMT symbols will be circularly
+% shifted by -tau (upwards) before multiplying Hisi.
 
 % Post-cursor ICI Matrix
-Hici(1:(delta),(N - L + 1):(N -nu + tau - n0)) = -Ht*W_w;
+Hici(1:delta, (N - L + n0 + 1):(N -nu + tau)) = -Ht_windowed;
+% It is assumed that the DMT symbols that multiply Hici are not shifted.
 
 %% Pre-cursor ICI
 
@@ -91,13 +102,24 @@ if (preCursor) % Pre-cursor ICI is also mitigated
     % Preallocate
     HpreIci = zeros(N, N);
 
+    % Core Convolution (Toeplitz) Matrix
     H_tilde_t = toeplitz(p(1:n0), [p(1) zeros(1, n0 - 1)]);
 
+    % Window Matrix
     W_tilde_w = diag(dmtWindow(1:n0));
 
+    % Windowed Core Matrix
     H_tilde_t_windowed = H_tilde_t * W_tilde_w;
 
-    HpreIci(end-n0+1:end,end-n0+1:end) = - H_tilde_t_windowed;
+    % ISI Matrix
+    HpreIsi(Nfft-n0+1:end,1:n0) = H_tilde_t_windowed;
+    % It is assumed that the column-vector DMT symbols will be circularly
+    % shifted by nu (downwards) before multiplying HpreIsi.
+
+    % ICI Matrix
+    HpreIci = -HpreIsi;
+    % It is assumed that the DMT symbols that multiply HpreIci are not
+    % shifted.
 
     % Add pre-cursor ICI matrix to the post-cursor ICI matrix:
     Hici = Hici + HpreIci;

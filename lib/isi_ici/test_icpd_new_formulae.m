@@ -77,59 +77,97 @@ y_ideal = Hcirc * circshift(x, -n0);
 Hisi = zeros(Nfft,Nfft);
 Hici = zeros(Nfft,Nfft);
 
-% Window
-W_t = diag(dmtWindow(end-delta+1:end));
+% Core Convolution (Toeplitz) Matrix
+Ht = toeplitz([h(end) zeros(1, L-(nu-tau)-n0-1)],...
+               flipud(h((nu - tau + n0 + 2):end)));
 
-% ISI Core Matrix
-Ht = toeplitz([h(end) zeros(1, L-(nu-tau)-n0-1)], flipud(h((nu - tau + n0 + 2):end)));
-Ht_windowed = Ht * W_t;
+% Window Diagonal Matrix
+W_w = diag(dmtWindow(end-delta+1:end));
+
+% Windowed Core Matrix
+Ht_windowed = Ht * W_w;
 % IMPORTANT: the above works both when windowing is used and when it is not
 % used. The only condition is that tau must be set to 0 when not using
-% windowing, first because it is really 0, second because W_t becomes an
-% identity.
+% windowing, first because it is indeed 0 in thia case, second because W_t
+% becomes an identity.
+
+% Post-cursor ISI Matrix
+Hisi(1:delta, (Nfft - delta + 1):Nfft ) = Ht_windowed;
+% Row indexes: reason is that the first delta samples are affected by ISI
+%
+% Column indexes: reason is that the multiplied x column-vectors will be
+% rotated by tau upwards, which will leave the last samples of the vector
+% being the samples from the overlapped suffix, which are exactly the
+% "first" to cause ISI. So the convolution matrix must multiply the last
+% delta elements of the vectors.
+
+% Post-cursor ICI Matrix
+Hici(1:delta, (Nfft - L + n0 + 1):(Nfft -nu + tau)) = -Ht_windowed;
+% Row indexes: reason is that the first delta samples are affected by ICI
+%
+% Column indexes: reason is more complex, related to the "missing samples".
+% The first column of the conv matrix has x[n0] in its first row and (n0 +
+% nu) samples available in the rows beneath. However, tau of these samples
+% will be naturally affected by ICI due to windowing. Therefore, to
+% complete the L + 1 rows with non-zero values, the missing samples will be
+% from index (n0 - L) mod-N, equivalent to x[N + (n0 -L)] (because n0 < L),
+% up to x[N -(nu - tau) - 1], where N -(nu - tau) - 1 < N (namely the index
+% will be within [0,N-1]) because (nu > tau).
 
 % Post-cursor ISI
-Hisi(1:(delta), (Nfft - L + nu + 1):(Nfft + tau - n0) ) = Ht_windowed;
-if (n0 < tau)
-    % When n0 < tau, the matrix has to be circularly shifted
-    shiftBy = tau - n0;
-    Hisi = Hisi(:,shiftBy+1:end);
-    Hisi = circshift(Hisi, [0, shiftBy]);
-end
+y_postIsi = Hisi * circshift(x(:,1:end-1), -tau);
+y_postIsi = [zeros(Nfft,1), y_postIsi]; % First symbol does not suffer ISI
 
 % Post-cursor ICI
-Hici(1:(delta), (Nfft - L + 1):(Nfft -nu + tau - n0)) = -Ht_windowed;
-
-y_postIci = Hici * circshift(x, -n0);
-y_postIsi = Hisi * circshift(x(:,1:end-1), -n0);
-y_postIsi = [zeros(Nfft,1), y_postIsi];
+y_postIci = Hici * x;
 
 disp('Test removing post-cursor ICPD:')
 y - (y_ideal + y_postIci + y_postIsi)
 
 %% Pre-cursor
 
-% Common matrix
-H_tilde_t = toeplitz(h(1:n0), [h(1) zeros(1, n0 - 1)]);
+% Preallocate Pre-cursor ISI/ICI Matrices
+HpreIci = zeros(Nfft, Nfft);
+HpreIsi = zeros(Nfft, Nfft);
 
-W_tilde_t = diag(dmtWindow(1:n0));
+if (n0 > 0)
+    % Core Convolution (Toeplitz) Matrix
+    H_tilde_t = toeplitz(h(1:n0), [h(1) zeros(1, n0 - 1)]);
 
-H_tilde_t_windowed = H_tilde_t * W_tilde_t;
+    % Window Matrix
+    W_tilde_w = diag(dmtWindow(1:n0));
+
+    % Windowed Core Matrix
+    H_tilde_t_windowed = H_tilde_t * W_tilde_w;
+
+    % ISI Matrix
+    HpreIsi(Nfft-n0+1:end,1:n0) = H_tilde_t_windowed;
+    % Row indexes: last n0 samples are affected by pre-cursor ISI
+    %
+    % Column indexes: the samples x[n] causing pre-cursor ISI always start
+    % at the CP of the succeding DMT symbol. Since we circularly shift the
+    % symbol vectors by nu downwards, the first sample of the vectors will
+    % become x[N-nu], exactly the first of the sequence that causes
+    % pre-cursor ISI. Therefore, we need to place the convolution matrix at
+    % the first n0 columns, which will span samples x[N-nu] to
+    % x[((n0 -nu -1))mod-N].
+
+    %ICI Matrix
+    HpreIci = -HpreIsi;
+    % Row indexes: last n0 samples are affected by pre-cursor ICI
+    %
+    % Column indexes: the samples x[n] that will be missing in the
+    % convolution summation at the last n0 outputs y[n] are always the
+    % first n0 samples x[0] to x[n0 - 1].
+
+end
 
 % Pre-cursor ICI
-
-%ICI Matrix
-HpreIci = zeros(Nfft, Nfft);
-HpreIci(end-n0+1:end,end-n0+1:end) = - H_tilde_t_windowed;
-
-y_preIci = HpreIci * circshift(x, -n0);
+y_preIci = HpreIci * x;
 
 % Pre-cursor ISI
-HpreIsi = zeros(Nfft, Nfft);
-HpreIsi(end-n0+1:end,(Nfft - nu - n0 + 1):(Nfft - nu)) = H_tilde_t_windowed;
-
-% Multiply by "future" symbols:
-y_preIsi = HpreIsi * circshift(x_withLastSymbol(:, 2:end), -n0);
+%Multiply by "future" symbols:
+y_preIsi = HpreIsi * circshift(x_withLastSymbol(:, 2:end), nu);
 
 disp('Test removing pre-cursor ICPD:')
 y - (y_ideal + y_preIci + y_preIsi)
