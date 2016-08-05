@@ -175,3 +175,29 @@ y - (y_ideal + y_preIci + y_preIsi)
 %% Complete ICPD Removal
 disp('Test removing post and pre-cursor ICPD:')
 y - (y_ideal + y_postIci + y_postIsi + y_preIci + y_preIsi)
+
+%% Test DMT ISI/ICI Matrix function
+
+fprintf('\n---------------------------------------------------------\n');
+fprintf('Testing Matrices designed by \"dmtIsiIciMatrices():\"\n\n');
+NO_PRECURSOR_ICI = 0;
+[ Hisi2, Hici2, Hcirc2 ] = dmtIsiIciMatrices(h, n0, nu, tau, Nfft, ...
+    NO_PRECURSOR_ICI, windowing);
+
+if (any(Hisi(:) ~= Hisi2(:)))
+    fprintf('Hisi\t Error (different)\n');
+else
+    fprintf('Hisi\t Passed (identical)\n');
+end
+
+if (any(Hici(:) ~= Hici2(:)))
+    fprintf('Hici\t Error (different)\n');
+else
+    fprintf('Hici\t Passed (identical)\n');
+end
+
+if (any(Hcirc(:) ~= Hcirc2(:)))
+    fprintf('Hcirc\t Error (different)\n');
+else
+    fprintf('Hcirc\t Passed (identical)\n');
+end
