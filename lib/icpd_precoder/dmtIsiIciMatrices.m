@@ -1,4 +1,5 @@
-function [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(p, n0, nu, tau, N, preCursor, windowing)
+function [ Hisi, Hici, Hcirc, HpreIsi, HpreIci ] = ...
+    dmtIsiIciMatrices(p, n0, nu, tau, N, windowing)
 % Compute the time-domain ISI anc ICI matrices
 % ---------------------------------------------
 % [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(h, n0, nu, tau, N, ...
@@ -28,6 +29,13 @@ function [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(p, n0, nu, tau, N, preCursor,
 %   Hisi   ->  Time-domain ISI matrix
 %   Hici   ->  Time-domain ICI matrix
 %   Hcirc  ->  Circulant matrix for the Ideal channel
+
+%% Verification of Outputs
+
+% Default
+computeHcirc   = (nargout > 2);
+computeHpreIsi = (nargout > 3);
+computeHpreIci = (nargout > 4);
 
 %% Initialization
 
@@ -98,31 +106,31 @@ if (preCursorEnergy >= 0.1 * norm(p)^2)
         'Post-cursor ICPD does not occur');
 end
 
-if (preCursor) % Pre-cursor ICI is also mitigated
-    % Preallocate
-    HpreIci = zeros(N, N);
+% Preallocate
+HpreIci = zeros(N, N);
+HpreIsi = zeros(N, N);
 
-    % Core Convolution (Toeplitz) Matrix
-    H_tilde_t = toeplitz(p(1:n0), [p(1) zeros(1, n0 - 1)]);
+% Core Convolution (Toeplitz) Matrix
+H_tilde_t = toeplitz(p(1:n0), [p(1) zeros(1, n0 - 1)]);
 
-    % Window Matrix
-    W_tilde_w = diag(dmtWindow(1:n0));
+% Window Matrix
+W_tilde_w = diag(dmtWindow(1:n0));
 
-    % Windowed Core Matrix
-    H_tilde_t_windowed = H_tilde_t * W_tilde_w;
+% Windowed Core Matrix
+H_tilde_t_windowed = H_tilde_t * W_tilde_w;
 
+if (computeHpreIsi) % Pre-cursor ICI is also mitigated
     % ISI Matrix
-    HpreIsi(Nfft-n0+1:end,1:n0) = H_tilde_t_windowed;
+    HpreIsi(N-n0+1:end,1:n0) = H_tilde_t_windowed;
     % It is assumed that the column-vector DMT symbols will be circularly
     % shifted by nu (downwards) before multiplying HpreIsi.
+end
 
+if (computeHpreIci)
     % ICI Matrix
     HpreIci = -HpreIsi;
     % It is assumed that the DMT symbols that multiply HpreIci are not
     % shifted.
-
-    % Add pre-cursor ICI matrix to the post-cursor ICI matrix:
-    Hici = Hici + HpreIci;
 end
 
 end

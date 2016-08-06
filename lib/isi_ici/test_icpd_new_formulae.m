@@ -180,9 +180,9 @@ y - (y_ideal + y_postIci + y_postIsi + y_preIci + y_preIsi)
 
 fprintf('\n---------------------------------------------------------\n');
 fprintf('Testing Matrices designed by \"dmtIsiIciMatrices():\"\n\n');
-NO_PRECURSOR_ICI = 0;
-[ Hisi2, Hici2, Hcirc2 ] = dmtIsiIciMatrices(h, n0, nu, tau, Nfft, ...
-    NO_PRECURSOR_ICI, windowing);
+
+[ Hisi2, Hici2, Hcirc2, HpreIsi2, HpreIci2 ] = ...
+    dmtIsiIciMatrices(h, n0, nu, tau, Nfft, windowing);
 
 if (any(Hisi(:) ~= Hisi2(:)))
     fprintf('Hisi\t Error (different)\n');
@@ -200,4 +200,16 @@ if (any(Hcirc(:) ~= Hcirc2(:)))
     fprintf('Hcirc\t Error (different)\n');
 else
     fprintf('Hcirc\t Passed (identical)\n');
+end
+
+if (any(HpreIsi(:) ~= HpreIsi2(:)))
+    fprintf('HpreIsi\t Error (different)\n');
+else
+    fprintf('HpreIsi\t Passed (identical)\n');
+end
+
+if (any(HpreIci(:) ~= HpreIci2(:)))
+    fprintf('HpreIci\t Error (different)\n');
+else
+    fprintf('HpreIci\t Passed (identical)\n');
 end

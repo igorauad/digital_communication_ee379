@@ -43,7 +43,7 @@ Q = (1/sqrt(N))*fft(eye(N));
 %% Time-domain ISI, ICI and Circulant Matrices
 
 [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(p,...
-            n0, nu, tau, N, preCursor, windowing);
+            n0, nu, tau, N, windowing);
 
 %% Precoder/Equalizer Design
 

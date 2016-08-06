@@ -28,7 +28,7 @@ function [Precoder] = dmtFreqPrecoder(h, N, Lcp, Lcs, n0, WINDOWING)
     Q = (1/sqrt(N))*fft(eye(N));
 
     [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(h,...
-            n0, Lcp, Lcs, N, 1, WINDOWING);
+            n0, Lcp, Lcs, N, WINDOWING);
 
     % Phase shift (in freq. domain) due to circular shift in time domain:
     phaseShift = sparse(diag(exp(1j*2*pi*(n0/N)*(0:N-1))));
@@ -45,7 +45,7 @@ function [Precoder] = dmtFreqPrecoder(h, N, Lcp, Lcs, n0, WINDOWING)
 
     % Feedback equalizer
     B = - H\(Q*Hisi*Q'*phaseShift*Q);
-    
+
     clear Hcirc Hici Hisi Ht Phase_shift
 
     Precoder.W = W;
