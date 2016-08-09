@@ -348,18 +348,9 @@ noise = sqrt(N0_over_2/Ts) * randn(size(rx_pre_noise));
 
 if (debug)
     fprintf('\n-------- Noise Power Measurements -------\n\n');
-    % Compare with Mathworks results
-    AWGN = comm.AWGNChannel;
-    AWGN.NoiseMethod = 'Signal to noise ratio (Es/No)';
-    AWGN.EsNo = 10*log10(( (Ex/(L^2)) /(2*N0_over_2)));
-    AWGN.SignalPower = Px;
-    AWGN.SamplesPerSymbol = L;
-    noise_mtwks = AWGN.step(zeros(size(rx_pre_noise))); % AWGN channel
     fprintf('Nominal N0/2:\t %g\n', N0_over_2);
     fprintf('Measured noise variance per real dim:\t %g\n', ...
         Ts * var(noise));
-    fprintf('Mathworks noise variance per real dim:\t %g\n', ...
-        Ts * var(noise_mtwks));
 end
 
 %% Anti-aliasing LPF at Rx
@@ -467,7 +458,7 @@ if (debug)
     grid on
     hold on
     stem(Tsym*(0:nSymbols-1), z_k_unscaled, 'ro', 'MarkerSize', 10)
-    legend('Tx','Rx', 'FontSize', 12)
+    legend('Tx','Rx')
     set(gca, 'YTick', [-(M - 1):2:(M)])
 end
 
