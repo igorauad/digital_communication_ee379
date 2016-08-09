@@ -23,10 +23,10 @@ addpath('../lib/')
 
 % Parameters
 N           =   1;      % Dimensions per symbol
-nBits       =   4e5;    % Number of transmit symbols
+nBits       =   1e3;    % Number of transmit symbols
 debug       =   0;      % Enable plots and extra information
 rollOff     =   0.1;    % Roll-off factor
-L           =   1;      % Oversampliqng (support only for integer values)
+L           =   2;      % Oversampliqng (support only for integer values)
 W           =   1e3;    % Nominal bandwith (Hz)
 N_T         =   10;     % Raised-cosine group-delay in symbols
 Px          =   2e3;    % Transmit Power (W)
