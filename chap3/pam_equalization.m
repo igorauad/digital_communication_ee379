@@ -143,7 +143,7 @@ phi_p = p / norm_p;
 q = Ts * conv(phi_p, conj(fliplr(phi_p)));
 [q_max,i_q0] = max(q);
 if(q_max-1 > 1e-8)
-   warning('q(t) peak is not unitary.');
+    warning('q(t) peak is not unitary.');
 end
 
 fprintf('\n------------------ MFB ------------------\n\n');
@@ -159,19 +159,19 @@ fprintf('Pe (NNUB):\t %g\n', Pe);
 
 % Also consider distortion
 if (~ideal_chan)
-   fprintf('\n--------- ISI Characterization ----------\n\n');
-   % Maximum value for |x_k|
-   x_abs_max = max(abs(pammod(0:(M-1), M)));
-   % Mean-square distortion - Eq. (3.33)
-   D_ms = Ex * norm_p_sq * (sum(abs(q).^2) - 1);
-   % -1 in the summation removes the magnitude of q_0
-   % From (1.216):
-   d_min = sqrt((12 * Ex) / (M^2 - 1));
-   % Then, from (3.34):
-   Pe = Ne * qfunc((norm_p * d_min) / (2 * sqrt(N0_over_2 + D_ms)));
-   % Prints
-   fprintf('Mean-Square Distortion:\t %g db/Hz\n', 10*log10(D_ms));
-   fprintf('Pe (NNUB):             \t %g\n', Pe);
+    fprintf('\n--------- ISI Characterization ----------\n\n');
+    % Maximum value for |x_k|
+    x_abs_max = max(abs(pammod(0:(M-1), M)));
+    % Mean-square distortion - Eq. (3.33)
+    D_ms = Ex * norm_p_sq * (sum(abs(q).^2) - 1);
+    % -1 in the summation removes the magnitude of q_0
+    % From (1.216):
+    d_min = sqrt((12 * Ex) / (M^2 - 1));
+    % Then, from (3.34):
+    Pe = Ne * qfunc((norm_p * d_min) / (2 * sqrt(N0_over_2 + D_ms)));
+    % Prints
+    fprintf('Mean-Square Distortion:\t %g db/Hz\n', 10*log10(D_ms));
+    fprintf('Pe (NNUB):             \t %g\n', Pe);
 end
 
 %% Equalizer Design
@@ -293,36 +293,36 @@ tx_waveform = conv(htx, signals_up(:));
 % factor of Ts is not required.
 
 if (debug)
-   % To understand the following, consult page 26, chap 9 of Gallager's
-   % book on Digital Comm I.
-   fprintf('\n------- Energy/Power Measurements -------\n\n');
-   % Due to the invariance of the inner product, the average transmit
-   % energy (given the basis are orthonormal) should be close to Ex:
-   tx_avg_energy = mean(abs(tx_signals).^2);
-   % Note the above does not have the Ts factor, because "tx_signals"
-   % multiply orthonormal basis already.
-   fprintf('Measured average Tx energy:\t %g\n', tx_avg_energy);
-   fprintf('Spec average Tx energy (Ex):\t %g\n', Ex);
-   % Upsampled sequence average energy
-   tx_total_energy = Ts * norm(tx_waveform).^2;
-   tx_avg_energy_sampled = tx_total_energy / length(tx_waveform);
-   % In contrast to "tx_avg_energy", the above comes from samples of the
-   % sinc-interpolation formula, which is not an orthonormal expansion, but
-   % orthogonal. Thus, the Ts is required.
-   fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
-   fprintf('Observe that Es = Ex/L\n');
-   fprintf('    (Ex/L):                \t %g\n', Ex/L);
-   fprintf('\n');
-   % The transmit power is equivalent to the mean in the transmit signal
-   % sequence.
-   Ex_over_Tsym = tx_avg_energy / Tsym;
-   Es_over_Ts = tx_avg_energy_sampled / Ts;
-   fprintf('Ex/Tsym:\t %g\n', Ex_over_Tsym);
-   fprintf('Es/Ts:  \t %g\n', Es_over_Ts);
-   fprintf('Spec Px:\t %g\n', Px);
-   fprintf('\nTotal Energy\n');
-   fprintf('%.E symbols require:\t %g J\n', nSymbols, Ex * nSymbols);
-   fprintf('Measured energy:\t %g J\n', tx_total_energy);
+    % To understand the following, consult page 26, chap 9 of Gallager's
+    % book on Digital Comm I.
+    fprintf('\n------- Energy/Power Measurements -------\n\n');
+    % Due to the invariance of the inner product, the average transmit
+    % energy (given the basis are orthonormal) should be close to Ex:
+    tx_avg_energy = mean(abs(tx_signals).^2);
+    % Note the above does not have the Ts factor, because "tx_signals"
+    % multiply orthonormal basis already.
+    fprintf('Measured average Tx energy:\t %g\n', tx_avg_energy);
+    fprintf('Spec average Tx energy (Ex):\t %g\n', Ex);
+    % Upsampled sequence average energy
+    tx_total_energy = Ts * norm(tx_waveform).^2;
+    tx_avg_energy_sampled = tx_total_energy / length(tx_waveform);
+    % In contrast to "tx_avg_energy", the above comes from samples of the
+    % sinc-interpolation formula, which is not an orthonormal expansion, but
+    % orthogonal. Thus, the Ts is required.
+    fprintf('Average sample energy (Es):\t %g\n', tx_avg_energy_sampled);
+    fprintf('Observe that Es = Ex/L\n');
+    fprintf('    (Ex/L):                \t %g\n', Ex/L);
+    fprintf('\n');
+    % The transmit power is equivalent to the mean in the transmit signal
+    % sequence.
+    Ex_over_Tsym = tx_avg_energy / Tsym;
+    Es_over_Ts = tx_avg_energy_sampled / Ts;
+    fprintf('Ex/Tsym:\t %g\n', Ex_over_Tsym);
+    fprintf('Es/Ts:  \t %g\n', Es_over_Ts);
+    fprintf('Spec Px:\t %g\n', Px);
+    fprintf('\nTotal Energy\n');
+    fprintf('%.E symbols require:\t %g u.e\n', nSymbols, Ex * nSymbols);
+    fprintf('Measured energy:\t %g u.e\n', tx_total_energy);
 end
 
 %% Transmission through channel
@@ -368,17 +368,17 @@ else
 end
 
 if (debug)
-   pwelch(tx_waveform,[],[],[],Fs,'twosided');
-   plot_obj = findobj(gcf);
-   alllines=findall(plot_obj,'Type','line');
-   set(alllines,'Color','red');
-   hold on
-   pwelch(noise,[],[],[],Fs,'twosided');
-   hold on
-   pwelch(rx_pre_noise,[],[],[],Fs,'twosided');
-   plot_obj = findobj(gcf);
-   plot_obj(end-2).Color = [1 0.5 0];
-   legend('Tx-Pre-Chan', 'Noise', 'Tx-Post-Chan')
+    pwelch(tx_waveform,[],[],[],Fs,'twosided');
+    plot_obj = findobj(gcf);
+    alllines=findall(plot_obj,'Type','line');
+    set(alllines,'Color','red');
+    hold on
+    pwelch(noise,[],[],[],Fs,'twosided');
+    hold on
+    pwelch(rx_pre_noise,[],[],[],Fs,'twosided');
+    plot_obj = findobj(gcf);
+    plot_obj(end-2).Color = [1 0.5 0];
+    legend('Tx-Pre-Chan', 'Noise', 'Tx-Post-Chan')
 end
 
 %% Equalize the received samples
@@ -422,8 +422,6 @@ switch (equalizer)
             % decision:
             z_dec(k) = Scale * pammod(rx_decSymbols(k), M);
         end
-
-
 
     case 2 % MMSE-LE
         % Feed-forward section
