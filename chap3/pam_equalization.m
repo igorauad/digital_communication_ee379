@@ -246,7 +246,11 @@ switch (equalizer)
         %       energy is assumed to be contained within -1/Tsym to 1/Tsym
         %       and, thus, does not change.
         w = w_t(1:(Nf*L));
-        b = -w_t((Nf*L) + 1:(Nf*L) + Nb);
+        b = -w_t((Nf*L) + 1:end);
+        % The dfecolor function can adjust the length of b from the
+        % specified value. Hence, we must update Nb to the actual length
+        % that was designed:
+        Nb = length(b);
 
         % Expected Performance
         SNR_fir_mmse_le_unbiased = 10^(SNR_mmse_unbiased_db/10);
