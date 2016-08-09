@@ -378,6 +378,9 @@ end
 
 %% Equalize the received samples
 
+% Preallocate decoded symbols
+rx_decSymbols = zeros(nSymbols, 1);
+
 switch (equalizer)
     case 1 % MMSE-DFE
         % Feed-forward section
@@ -396,19 +399,21 @@ switch (equalizer)
         % Since the DFE involves feedback, decision has to be made
         % iteratively
         z_dec = zeros(nSymbols, 1);
+        b_mem = zeros(length(b) - 1);
+        % Feedback loop
         for k = 1 : nSymbols
-            k_oldest = max([1  (k - Nb)]);
-            if (k > Nb)
-                n_b_taps = Nb;
+
+            if (k > 1)
+                % Filter past "sliced" symbols (after decision)"
+                [b_out, b_mem] = filter(b, 1, z_dec(k-1), b_mem);
+
+                % Symbol after feedback filter
+                z_prime_k = z_k(k) - b_out(1);
             else
-                n_b_taps = k - 1;
-            end
-            % Symbol after feedback filter
-            if (n_b_taps > 0)
-                z_prime_k = z_k(k) - b * z_dec(k_oldest:(k-1))';
-            else
+                % For the first-ever received symbol, there is no feedback
                 z_prime_k = z_k(k);
             end
+
             % Remove bias before decision and unscale back to original
             % constellation:
             rx_decSymbols(k) = ...
