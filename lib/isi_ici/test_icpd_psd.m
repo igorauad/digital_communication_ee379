@@ -176,6 +176,17 @@ Ex_bar
 [ S_icpd, S_post, S_pre ] = ...
     icpdPsd(h, Nfft, Nfft_psd, nu, tau, n0, Ex_bar, w);
 
+%% Attempt using matrix formulation
+
+[ S_icpd2, S_post2, S_pre2 ] = icpdPsdMtx(Hisi, HpreIsi, Ex_bar, Nfft_psd);
+
+figure
+plot(10*log10(abs(S_icpd)))
+hold on
+plot(10*log10(abs(S_icpd2)), '--r')
+legend('Using Summation', 'Using Matrices')
+title('PSD Computation Using Matrices')
+
 %% Transmit PSDs
 
 L         = Nfft_psd / Nfft; % Oversampling
