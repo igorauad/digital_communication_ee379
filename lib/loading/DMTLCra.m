@@ -1,4 +1,4 @@
-function [En,bn] = DMTLCra(gn, Ex_bar, N, gap_db, max_load, noDcNyquist)
+function [En,bn] = DMTLCra(gn, Ex, N, gap_db, max_load, noDcNyquist)
 %
 % EE379C 2008 Spring
 %
@@ -61,7 +61,7 @@ while(1)
         error('All suchannels are maximally loaded');
     end
     E_so_far = E_so_far+y;
-    if E_so_far > Ex_bar*N
+    if E_so_far > Ex
         break;
     else
         En(index)=En(index)+y;
