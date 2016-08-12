@@ -24,8 +24,8 @@ function [ bn_bar, En_bar, iUsed ] = waterFilling(gn, Ex, N, gap)
 %% Initialization
 
 % Preallocate output vectors:
-En_bar  = zeros(1, N);
-bn_bar  = zeros(1, N);
+En_bar  = zeros(1, length(gn));
+bn_bar  = zeros(1, length(gn));
 
 % Initialize the vector of indexes corresponding to the used dimensions:
 iUsed = find(gn ~= 0);

@@ -1,59 +1,78 @@
-function [En,bn] = DMTLCra(gn, Ex, N, gap_db, max_load, noDcNyquist)
+function [En,bn] = DMTLCra(gn, Ex, N, gap_db, max_load, n_dim)
 %
 % EE379C 2008 Spring
 %
 % Levin Campello?s Method with DMT
 %
 % Inputs
-% gn is the unitary-energy SNRs
-% Ex_bar is the normalized energy
-% N is the total number of real dimensions
-% gap_db is the gap in dB
-% max_load is the maximum allowed bit load for a subchannel
+% gn            Unitary-energy SNRs (gain-to-noise ratios)
+% Ex            Energy budget
+% N             Number of used real dimensions
+% gap_db is     Gap to capacity in dB
+% max_load      Maximum allowed bit load for a given subchannel (optional)
+% n_dim         Number of real dimensions for each subchannel (optional)
 %
 % Outputs
 % En is the vector energy distribution (PAM or QAM) per subchannel
 % bn is the vector bit distribution (PAM or QAM) per subchannel
 %
-% The first and last bins are PAM; the rest are QAM.
-% dB into normal scale
+% If vector "n_dim" is not passed as argument, then gn is inferred to come
+% from the positive half of an Hermitian symmetric vector. In this case,
+% the first and last bins are PAM (one-dimensional), while the rest are
+% QAM.
 
+%% Parameter Definitions
+
+% Define the maximum  bit load
 if (nargin < 5)
     max_load = inf;
 end
+
+% Define the number of real dimensions corresponding to each index of gn
 if (nargin < 6)
-    noDcNyquist = 0;
+    % If the number of real dimensions used in each index is not given,
+    % define it according to an Hermitian symmetric vector:
+    n_dim = [1; 2*ones(N/2 -1, 1); 1];
+else
+    if (length(n_dim) ~= length(gn))
+        error('Vector with number of dimensions has innapropriate length');
+    end
 end
 
+% Define sets containing the indexes of unused, one-dimensional and
+% two-dimensional subchannels
+unused_indexes  = find(n_dim == 0);
+one_dim_indexes = find(n_dim == 1);
+two_dim_indexes = find(n_dim == 2);
+
+% Sanity check
+if (sum(n_dim) > N)
+    error('Number of used real dimensions exceeds the limit');
+end
+
+% Gap to capacity in linear scale
 gap = 10^(gap_db/10);
 
-% initialization
-En = zeros(1,N/2+1);
-bn = zeros(1,N/2+1);
-decision_table = zeros(1,N/2+1);
+%% Levin Campello Initialization
 
-%debugging purpose
-%plot(gn)
-%%%%%%%%%%%%%%%%%%%%%%%
-% Levin Campello Loading %
-%%%%%%%%%%%%%%%%%%%%%%%
-%initialization
-%used energy so far
-E_so_far=0;
-%decision table - QAM and PAM
-decision_table(2:N/2)=2*gap./gn(2:N/2);
-% Gap formula incremental energies.
-if (noDcNyquist)
-    decision_table(1)=inf;
-else
-    decision_table(1)=3*gap/gn(1);
-end
-if (noDcNyquist)
-    decision_table(N/2+1)=inf;
-else
-    decision_table(N/2+1)=3*gap/gn(N/2+1);
-end
-%decision_table: debugging purpose
+% Preallocate/initialize
+En             = zeros(1, length(gn)); % Energy per subchannel
+bn             = zeros(1, length(gn)); % Bits per subchannel
+decision_table = zeros(1, length(gn)); % Decision table
+E_so_far       = 0;                    % Energy used so far
+
+% Decision Table Initialization
+
+% Two-dimensional subchannels
+decision_table(two_dim_indexes) = 2*gap./gn(two_dim_indexes);
+
+% One-dimensional subchannels
+decision_table(one_dim_indexes) = 3*gap./gn(one_dim_indexes);
+
+% Unused subchannels
+decision_table(unused_indexes)  = inf;
+
+%% Levin Campello Loading
 while(1)
     [y,index] = min(decision_table);
     if (isinf(y))
@@ -64,15 +83,16 @@ while(1)
     if E_so_far > Ex
         break;
     else
-        En(index)=En(index)+y;
-        bn(index)=bn(index)+1;
+        En(index) = En(index) + y;
+        bn(index) = bn(index) + 1;
         % Prevent constellations above a certain maximum load
         if( (bn(index) == max_load) )
             decision_table(index) = inf;
         end
-        % Update the decision table
-        if (index ==1 || index == N/2+1)
-            decision_table(index) = 4*decision_table(index);
+        % Update the decision table, considering whether the index
+        % corresponds to a 1-dimensional or 2-dimensional subchannel
+        if (n_dim(index) == 1)
+            decision_table(index) = 4 * decision_table(index);
         else
             % From 4.121, the incremental energy is 3dB for each bit.
             % However, note this only works when the gap for the two loads
