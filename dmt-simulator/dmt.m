@@ -533,7 +533,8 @@ end
 
 %% Energy loading (constellation scaling factors) and minimum distances
 
-[Scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, En_discrete);
+[Scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
+                    En_discrete, dim_per_subchannel);
 
 %% Monte-carlo
 
