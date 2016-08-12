@@ -46,6 +46,9 @@ Nfft      = L * N;
 Fs        = Nfft * delta_f;
 % delta_f does not change with L.
 
+% Total number of real dimensions per DMT symbol
+nDim       = Nfft + nu;
+
 % Note the difference between alpha and L. Variable "alpha" is used to
 % increase the density of the channel partitioning, namely reduce the tone
 % spacing solely by increasing the number of used dimensions, while
@@ -61,9 +64,12 @@ Tofdm     = 1 / delta_f;    % OFDM symbol duration (without CP)
 Tsym      = Tofdm + nu*Ts;  % Cyclic-prefixed multicarrier symbol period
 Rsym      = 1 / Tsym;       % DMT Symbol rate (real dimensions per sec)
 Ex        = Px * Tsym;      % Average DMT symbol energy
-% Recall due to repetition of samples in the prefix, the energy budget used
-% by the water-fill contraint must be Ex*(N/(N + nu)), so that the
-% effective transmit energy in the end is equal to Ex.
+% Due to repetition of samples in the prefix, the energy budget is not
+% entirely used for data transmission. Hence, the water-fill contraint must
+% be designed as the energy budget discounted by the energy allocated to
+% the cylic prefix. By setting the contraint to Ex*(Nfft/(Nfft + nu)), the
+% effective transmit energy in the end is equal to Ex, as desired.
+Ex_budget = Ex*(Nfft/(Nfft + nu)); % Energy budget passed to the WaterFill
 Ex_bar    = Ex / nDim;      % Energy per real dimension
 
 %% Constants
@@ -80,11 +86,46 @@ tdPrecoderPostPreCursor = 1;
 % Normalized FFT Matrix
 Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 
-% Dimensions per subchannel:
-dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)];
+%% Store vectors to look-up the number of dimensions in a subchannel
+% subchannel_index_herm -> Contains the indexes that can be used as
+%                          subchannels from the full Hermitian DFT.
+%                          Bit loading will determine whether used or not.
+% subchannel_index      -> Contains the indexes that can be used as
+%                          subchannels from the positive half of the DFT.
+%                          Again, bitloading determines wether used.
 
-% Vector of used subchannels among the NFFT indices
-used_fft_indices = [1:(N/2), (Nfft - N/2 + 1):Nfft].';
+% Number of real dimensions in each tone of the DFT:
+dim_per_dft_tone = [1 2*ones(1, Nfft/2-1) 1 2*ones(1, Nfft/2-1)];
+
+% Vector of used subchannels among the DFT indices
+% Assume DC is at tone 1 and Nyquist at Nfft/2 + 1. To compute the
+% Hermitian symmetric of the k-th tone, we compute "Nfft + 2 - k".
+if (L == 1)
+    if (noDcNyquist)
+        subCh_tone_index_herm = [2:(N/2), (Nfft +2 - N/2):Nfft].';
+        subCh_tone_index      = 2:(N/2);
+    else
+        subCh_tone_index_herm = [1:(N/2 +1), (Nfft +2 - N/2):Nfft].';
+        subCh_tone_index      = 1:(N/2 +1);
+    end
+else
+    % When oversampling is used, it is easier to force the disabling of DC
+    % and Nyquist tones. In this case, the bin that for L=1 (no
+    % oversampling) represents Nyquist is loaded as a complex subchannel.
+    warning('DC and Nyquist are tones are not loaded due to oversampling');
+    noDcNyquist = 1;
+    subCh_tone_index_herm = [2:(N/2 + 1), (Nfft +2 - N/2 - 1):Nfft].';
+    % N/2 complex subcarriers at the positive half and the corresponding
+    % N/2 complex conjugate subcarriers at the negative half.
+    subCh_tone_index      = 2:(N/2 + 1);
+end
+
+% Then store the number of dimensions corresponding to each used subchannel
+dim_per_subchannel   = dim_per_dft_tone(subCh_tone_index);
+
+% Number of available subchannels
+N_subch  = length(subCh_tone_index);
+
 %% Pulse Response
 
 channelChoice = 2;
@@ -124,10 +165,9 @@ switch (channelChoice)
         p = [1e-5 1e-5 .91 -.3 .2 .09 .081 .0729];
 end
 
-% Pulse frequency response
-H = fft(p, Nfft);
-% Store only the response at the used indices of the FFT
-H = H(used_fft_indices);
+if (length(p) > Nfft)
+    warning('Pulse response longer than Nfft');
+end
 
 % Pulse response length
 Lh = length(p);
@@ -139,7 +179,7 @@ fprintf('SNRmfb:    \t %g dB\n\n', 10*log10(SNRmfb))
 %% Windowing
 
 if (windowing)
-    dmtWindow = designDmtWindow(N, nu, tau);
+    dmtWindow = designDmtWindow(Nfft, nu, tau);
 else
     % When windowing is not used, the suffix must be 0
     tau = 0;
@@ -205,15 +245,14 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         %   The gain to noise ratio at the receiver becomes:
         gn_teq = (abs(H_eff).^2)./(N0_over_2 * abs(H_w).^2);
         %   Store only the used tones
-        gn_teq = gn_teq(used_fft_indices);
-        %   Finally, note that because H_eff = H .* H_w, the above
-        %   gain-to-noise ratio tends to be equivalent to (when H_W is
-        %   non-zero):
-        %       gn = (abs(H).^2) / N0_over_2;
+        gn_teq = gn_teq(subCh_tone_index_herm);
+        %   Note that if ICPD was not accounted, since H_eff = Hn .* H_w,
+        %   the above gain-to-noise ratio would tend to be equivalent to
+        %   (for all non-zero H_W):
+        %       gn = (abs(Hn).^2) / N0_over_2;
         %   Ultimately, the gain-to-noise ratio is not being affected by
         %   the TEQ in the expression. This can be the fallacy in the
         %   model, specially regarding the frequency notches.
-
     case 2
 fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
         FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
@@ -225,19 +264,19 @@ fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
         w_norm_n =  TimePrecoder.ici.wk;
 end
 
-%% 1-tap Frequency Equalizer
+%% Channel Freq Response and Frequency Equalizer
 
 % Frequency domain response
 switch (equalizer)
     case 1
         % Use the effective pulse response in the FEQ
-        H_freq = fft(p_eff, Nfft);
+        H = fft(p_eff, Nfft);
     otherwise
-        H_freq = fft(p, Nfft);
+        H = fft(p, Nfft);
 end
 
 % Store only the response at the used indices of the FFT
-H_freq = H_freq(used_fft_indices);
+Hn = H(subCh_tone_index_herm);
 
 % Cursor
 switch (equalizer)
@@ -251,12 +290,12 @@ switch (equalizer)
 end
 
 % Corresponding phase shift due to cursor
-phaseShift = exp(1j*2*pi*(n0/Nfft)*(used_fft_indices.' - 1));
+phaseShift = exp(1j*2*pi*(n0/Nfft)*(subCh_tone_index_herm.' - 1));
 
 % Frequency Equalizer
-FEQ    = (1 ./ (H_freq .* phaseShift));
+FEQn    = (1 ./ (Hn .* phaseShift));
 
-%% SNR for unitary energy transmit symbol
+%% Gain-to-noise Ratio
 
 switch (equalizer)
     case 1
@@ -279,19 +318,17 @@ switch (equalizer)
         % Furthermore, note that water-fill does not lead to flat energy
         % load, so that better results can be obtained by jointly designing
         % the energy budget scale factor and the bit loading.
-        gn = (abs(H).^2) ./ (w_norm_n * N0_over_2);
+        gn = (abs(Hn).^2) ./ (w_norm_n * N0_over_2);
     case 3
         % The normalization adopted for the time-domain precoder is almost
         % equal to the one for the frequency-domain precoder. The only
         % difference is that the entries zeroed for complexity reduction
         % are accounted.
-        gn = (abs(H).^2) ./ (w_norm_n * N0_over_2);
+        gn = (abs(Hn).^2) ./ (w_norm_n * N0_over_2);
     otherwise
         % When no equalizer is adopted, the ISI/ICI energy per dimension is
         % taken into account in the bit loading
-        icpd_psd = interferencePsd(p, N, nu, tau, n0, ...
-            Ex_bar, POST_PRE_ICPD_FLAG, windowing);
-        gn = (abs(H).^2) ./ (N0_over_2 + (icpd_psd.'));
+        gn = (abs(Hn).^2) ./ (N0_over_2 + (icpd_psd.'));
 end
 
 %% Water filling
@@ -299,14 +336,16 @@ end
 fprintf('\n--------------------- Water Filling -------------------- \n\n');
 
 % Water-filling:
-[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar, N, gap);
+[bn_bar, En_bar] = waterFilling(gn, Ex_budget, N, gap);
+
+% Residual unallocated energy
+fprintf('Unallocated energy:      \t  %g\n', Ex_budget - sum(En_bar));
 
 % Bits per subchannel
-bn = bn_bar(1:N/2+1) .* dim_per_subchannel(1:N/2+1);
-
+bn = bn_bar(1:N_subch) .* dim_per_subchannel;
 % Number of bits per dimension
 b_bar = (1/nDim)*(sum(bn_bar));
-fprintf('\nb_bar:                  \t %g bits/dimension\n', b_bar)
+fprintf('b_bar:                  \t %g bits/dimension\n', b_bar)
 % For gap=0 and N->+infty, this should be the channel capacity per real
 % dimension.
 
@@ -330,21 +369,26 @@ fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
 % Rate-adaptive Levin-Campello loading:
 [En_discrete, bn_discrete] = DMTLCra(...
-    gn(1:N/2 + 1),...
-    Ex_bar,...
+    gn(1:N_subch),...
+    Ex_budget,...
     N, gap_db, ...
-    max_load,...
-    noDcNyquist);
+    max_load, ...
+    dim_per_subchannel);
+
+% Residual unallocated energy
+fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En_discrete));
 
 % Save a vector with the index of the subchannels that are loaded
-n_loaded = find(bn_discrete ~= 0);
+n_loaded = subCh_tone_index(bn_discrete ~= 0);
+% Number of subchannels that are loaded
+N_loaded = length(n_loaded);
+% Dimensions in each loaded subchannel
+dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
 
 % Energy per real dimension
-En_bar_lc = [En_discrete, fliplr(conj(En_discrete(2:N/2)))] ...
-    ./ dim_per_subchannel;
+En_bar_lc = En_discrete ./ dim_per_subchannel;
 % Bits per subchannel per dimension
-bn_bar_lc = [bn_discrete(1:N/2+1), fliplr(bn_discrete(2:N/2))] ./ ...
-    dim_per_subchannel;
+bn_bar_lc = bn_discrete ./ dim_per_subchannel;
 
 % Total bits per dimension:
 b_bar_discrete = 1/nDim*(sum(bn_discrete));
@@ -352,8 +396,8 @@ b_bar_discrete = 1/nDim*(sum(bn_discrete));
 % SNRdmt from the number of bits per dimension
 SNRdmt_discrete    = gap*(2^(2*b_bar_discrete)-1);
 SNRdmt_discrete_db = 10*log10(SNRdmt_discrete);
-% SNR on each tone, per dimension:
-SNR_n_lc           = En_bar_lc .* gn; % SNR per real dimension
+% SNR on each tone, per real dimension:
+SNR_n_lc           = En_bar_lc .* gn(1:N_subch);
 % Normalized SNR on each tone, per dimension (should approach the gap)
 SNR_n_norm_lc      = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
 
@@ -368,14 +412,14 @@ fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
 % Compare water-filling and discrete-loading
 if (debug && debug_loading)
     figure
-    plot(bn(1:N/2+1), ...
+    plot(subCh_tone_index, bn, ...
         'linewidth', 1.1)
     hold on
-    plot(bn_discrete, 'g')
+    plot(subCh_tone_index, bn_discrete, 'g')
     legend('Water-filling', 'Discrete Loading')
     xlabel('Subchannel');
     ylabel('Bits');
-    set(gca,'XLim',[1 N/2+1]);
+    grid on
 end
 
 %% Channel Capacity
@@ -385,7 +429,9 @@ end
 fprintf('\n------------------ Channel Capacity -------------------- \n\n');
 
 % Capacity per real dimension
-cn = 0.5 * log2(1 + SNR_n_lc);
+cn_bar = 0.5 * log2(1 + SNR_n_lc);
+% Capacity per subchannel
+cn = cn_bar .* dim_per_subchannel;
 % Multi-channel capacity, per dimension:
 c = sum(cn) / nDim;
 % Note #1: for the capacity computation, all real dimensions are
@@ -394,7 +440,7 @@ c = sum(cn) / nDim;
 % above is only an approximation.
 
 fprintf('capacity:               \t %g bits/dimension', c)
-fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * (N+nu) /1e6);
+fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * nDim /1e6);
 
 %% Analysis of the Error Probability per dimension
 % Comparison between the water-filling and the discrete loading in terms of
@@ -405,11 +451,14 @@ fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * (N+nu) /1e6);
 fprintf('\n----------------- Error Probabilities ------------------ \n\n');
 
 % Preallocate
-Pe_bar_n    = zeros(N/2 + 1, 1);
-Pe_bar_n_lc = zeros(N/2 + 1, 1);
+Pe_bar_n    = zeros(N_loaded, 1);
+Pe_bar_n_lc = zeros(N_loaded, 1);
 
-for k = n_loaded
-    if (dim_per_subchannel(k) == 2)
+for k = 1:N_loaded
+    % "iSubCh" iterates over the loaded subchannels, but does not give the
+    % exact DFT tone index.
+
+    if (dim_per_loaded_subchannel(k) == 2)
         % QAM Nearest-neighbors Union Bound assuming QAM-SQ constellations
         % for both even and odd loads. "Hybrid QAM" constellations are used
         % as "Square" for odd loads.
@@ -462,27 +511,27 @@ end
 
 if (debug && debug_Pe)
     figure
-    plot(Pe_bar_n, 'linewidth', 1.1)
+    semilogy(n_loaded, Pe_bar_n, 'linewidth', 1.1)
     hold on
-    plot(Pe_bar_n_lc, 'r')
+    semilogy(n_loaded, Pe_bar_n_lc, 'r')
+    xlabel('Subchannel');
+    ylabel('$\bar{P_e}$', 'Interpreter', 'latex')
     legend('Water-filling', 'Levin-Campello')
     title('Pe per dimension on each subchannel')
-    set(gca,'XLim',[1 N/2+1]);
+    grid on
 end
 
 fprintf('Approximate NNUB Pe per dimension:\n');
-fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n(n_loaded), ...
-    'omitnan'));
-fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc(n_loaded), ...
-    'omitnan'));
+fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n, 'omitnan'));
+fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc, 'omitnan'));
 
 %% Modulators
 
 % Modulation order on each subchannel
 modOrder = 2.^bn_discrete;
 
-oneDimModOrders = [modOrder(1), modOrder(N/2 + 1)];
-twoDimModOrders = modOrder(2:N/2);
+oneDimModOrders     = modOrder(dim_per_subchannel == 1);
+twoDimModOrders     = modOrder(dim_per_subchannel == 2);
 oneDim_const_orders = unique(oneDimModOrders(oneDimModOrders~=1));
 twoDim_const_orders = unique(twoDimModOrders(twoDimModOrders~=1));
 
@@ -514,9 +563,9 @@ end
 
 %% Look-up table for each subchannel indicating the corresponding modem
 
-modem_n = zeros(N/2 + 1, 1);
+modem_n = zeros(length(subCh_tone_index), 1);
 
-for k = n_loaded % Iterate over loaded subchannels
+for k = 1:length(subCh_tone_index) % Iterate over subchannels
     if (dim_per_subchannel(k) == 2)
         iModem = find (twoDim_const_orders == modOrder(k));
         if (iModem)
@@ -542,9 +591,9 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 
 % Preallocate
 X          = zeros(Nfft, nSymbols);
-tx_data    = zeros(N/2 + 1, nSymbols);
-rx_data    = zeros(N/2 + 1, nSymbols);
-sym_err_n  = zeros(N/2 + 1, 1);
+tx_data    = zeros(N_loaded, nSymbols);
+rx_data    = zeros(N_loaded, nSymbols);
+sym_err_n  = zeros(N_loaded, 1);
 
 numErrs = 0; numDmtSym = 0;
 
@@ -559,20 +608,20 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     iTransmission = iTransmission + 1;
 
     % Random Symbol generation
-    for k = n_loaded
+    for k = 1:N_loaded
         tx_data(k, :) = randi(modOrder(k), 1, nSymbols) - 1;
     end
 
     %% Constellation Encoding
-    for k = n_loaded
+    for k = 1:N_loaded
         if (modem_n(k) > 0)
-            X(k, :) = Scale_n(k) * ...
+            X(n_loaded(k), :) = Scale_n(k) * ...
                 modulator{modem_n(k)}.modulate(tx_data(k, :));
         end
     end
 
     % Hermitian symmetry
-    X(Nfft - N/2 + 2:Nfft, :) = flipud( conj( X(2:N/2, :) ) );
+    X(Nfft/2 + 2:Nfft, :) = flipud( conj( X(2:Nfft/2, :) ) );
 
     %% Per-tone Precoder
     if (equalizer == 2)
@@ -587,11 +636,11 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Cyclic extension -> Windowing + overlap -> Parallel to serial
     if (windowing)
-        x_ext = [x(N-nu+1:N, :); x; x(1:tau,:)];
-        x_ce = windowAndOverlap(x_ext, dmtWindow, N, nu, tau);
+        x_ext = [x(Nfft-nu+1:Nfft, :); x; x(1:tau,:)];
+        x_ce = windowAndOverlap(x_ext, dmtWindow, Nfft, nu, tau);
         u = x_ce(:);
     else
-        x_ext = [x(N-nu+1:N, :); x];
+        x_ext = [x(Nfft-nu+1:Nfft, :); x];
         u = x_ext(:);
     end
 
@@ -612,7 +661,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % other.
         fprintf('Tx Energy p/ Sym:\t%g\t', ...
             tx_total_energy / nSymbols);
-        fprintf('Nominal:\t%g\t',Ex);
+        % Nominal energy is the value designed considering the energy
+        % allocated in the bit-loading algorithm plus the excess energy in
+        % the prefix
+        fprintf('Design value:\t%g\t', sum(En_discrete)*(Nfft + nu)/Nfft);
     end
 
     %% Channel
@@ -705,20 +757,19 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             % equalizes ISI using time-domain DMT symbols. However, its
             % derivation is based in the frequency-domain.
             [ rx_symbols, Z ] = dmtTdDfeReceiver(y_no_ext, modulator, ...
-                demodulator, modem_n, Scale_n, TimePrecoder, FEQ);
+                demodulator, modem_n, Scale_n, TimePrecoder, FEQn);
         case 2 % DMT with additional modulo operation
             [ rx_symbols, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
-                modem_n, Scale_n, FEQ, modOrder, dmin_n);
+                modem_n, Scale_n, FEQn, modOrder, dmin_n);
         otherwise
             % FFT
             Y = (1/sqrt(Nfft)) * fft(y_no_ext, Nfft);
 
             % FEQ - One-tap Frequency Equalizer
-            Z = diag(FEQ) * Y(used_fft_indices, :);
+            Z = diag(FEQn) * Y(subCh_tone_index_herm, :);
 
             %% Constellation decoding (decision)
-
-            for k = n_loaded
+            for k = 1:N_loaded
                 if (modem_n(k) > 0)
                     rx_data(k, :) = demodulator{modem_n(k)}.demodulate(...
                         (1/Scale_n(k)) * Z(k, :));
@@ -733,13 +784,13 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % Symbol error rate per subchannel
     ser_n     = sym_err_n / (iTransmission * nSymbols);
     % Per-dimensional symbol error rate per subchannel
-    ser_n_bar = ser_n ./ dim_per_subchannel(1:N/2+1).';
+    ser_n_bar = ser_n ./ dim_per_loaded_subchannel.';
 
     % Preliminary results
     numErrs   = sum(sym_err_n);
     numDmtSym = iTransmission * nSymbols;
 
-    fprintf('Pe_bar:\t%g\t', mean(ser_n_bar(n_loaded)));
+    fprintf('Pe_bar:\t%g\t', mean(ser_n_bar));
     % Note: consider only the loaded subchannels in the above
     fprintf('nErrors:\t%g\t', numErrs);
     fprintf('nDMTSymbols:\t%g\n', numDmtSym);
@@ -770,5 +821,4 @@ if (debug && debug_Pe)
     xlabel('Subchannel (n)')
     ylabel('$\bar{Pe}(n)$')
     legend('Measured','WF','LC')
-    set(gca,'XLim',[1 N/2+1]);
 end
