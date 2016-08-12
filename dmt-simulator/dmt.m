@@ -285,7 +285,7 @@ switch (equalizer)
         n0 = delta;
         % The cursor considers the MMSE-TEQ delay.
     otherwise
-        [~, iMax] = find(abs(p)>1e-5, 1, 'first');
+        [~, iMax] = max(abs(p));
         n0 = iMax - 1;
 end
 
