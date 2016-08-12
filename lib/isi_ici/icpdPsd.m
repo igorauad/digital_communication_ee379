@@ -2,7 +2,8 @@ function [ S_icpd, S_post, S_pre ] = ...
     icpdPsd(h, Nfft, Nfft_psd, nu, tau, n0, Ex_bar, w )
 % Insuficient Cyclic Prefix Distortion PSD
 % ---------------------------------------------------
-%   [ S_icpd, S_post, S_pre ] = icpdPsd( Hisi, HpreIsi, delta, n0 )
+%   [ S_icpd, S_post, S_pre ] = icpdPsd(h, Nfft, Nfft_psd, nu, tau,
+%                                       n0, Ex_bar, w )
 %
 %
 %   Input Arguments:

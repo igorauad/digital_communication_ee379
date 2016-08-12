@@ -9,7 +9,8 @@ n0        = 1;
 nSymbols  = 2;
 windowing = 0;
 % CIR:
-h = [0 0.1 1 0.9 0.3 0.2 0.1].';
+h = [0 0.1 1 0.9 0.3 0.2 0.1 0.1];
+h = h(:);
 
 %% Derived parameters
 symbolSize  = Nfft + nu;
