@@ -37,9 +37,12 @@ if (delta <= 0)
 end
 %% Circulant channel matrix
 
-h_padded = [h;  zeros(Nfft - Lh, 1)];
-Hcirc = toeplitz(h_padded, ...
-    flipud(circshift(h_padded,-1)));
+h_padded         = [h;  zeros(Nfft - Lh, 1)]; % Zero-padded CIR to length N
+h_padded_shifted = circshift(h_padded, -n0);  % Circular-shifted by -n0
+
+% Circulant matrix:
+Hcirc = toeplitz(h_padded_shifted, ...
+    flipud(circshift(h_padded_shifted,-1)));
 
 %% Transmission
 
@@ -69,7 +72,7 @@ y = y_ce((nu + 1):(nu + Nfft), :);
 x_withLastSymbol = x;
 x = x(:, 1:end-1);
 
-y_ideal = Hcirc * circshift(x, -n0);
+y_ideal = Hcirc * x;
 
 %% Post-cursor
 
