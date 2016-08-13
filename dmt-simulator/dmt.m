@@ -428,6 +428,7 @@ if (debug && debug_loading)
     xlabel('Subchannel');
     ylabel('Bits');
     grid on
+    title('Bit loading')
 end
 
 %% Channel Capacity
@@ -707,6 +708,78 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % Note: consider only the loaded subchannels in the above
     fprintf('nErrors:\t%g\t', numErrs);
     fprintf('nDMTSymbols:\t%g\n', numDmtSym);
+
+    %% Re-training of the bit-loading
+    % The initial bit-loading can often be innacurate, mostly due to the
+    % ICPD that is initially computed assuming the input is perfectly
+    % uncorrelated. During show-time, we can compute the actual correlation
+    % of the transmit signal and use it to compute a more accurate ICPD
+    % PSD. Using this PSD, in turn, we update the bit-load and restart the
+    % transmission.
+
+    % If the error is too high, bit-loading shall be re-trained
+    if (mean(ser_n_bar) > 10 * Pe_bar_lc)
+        fprintf('\n## Re-training the ICPD PSD and the bit-load vector...\n');
+
+        % Compute the ISI matrices
+        [Hisi, ~, ~, HpreIsi, ~] = ...
+            dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
+        % Input Autocorrelation based on actual transmit data
+        [r, l] = xcorr(x(:), Nfft-1, 'unbiased');
+        % Autocorrelation Matrix
+        Rxx = toeplitz(r(Nfft:end));
+        % Update the ICPD based on the ISI Matrices and the autocorrelation
+        % matrix
+        S_icpd = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft);
+
+        % Update the gain-to-noise ratio:
+        switch (equalizer)
+            case 1
+                gn = (abs(H_eff).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
+                gn = gn(subCh_tone_index_herm);
+            case 0
+                gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
+        end
+
+        % Rate-adaptive Levin-Campello loading:
+        [En_discrete, bn_discrete] = DMTLCra(...
+            gn(1:N_subch),...
+            Ex_budget,...
+            N, gap_db, ...
+            max_load, ...
+            dim_per_subchannel);
+
+        % Save a vector with the index of the subchannels that are loaded
+        n_loaded = subCh_tone_index(bn_discrete ~= 0);
+        % Number of subchannels that are loaded
+        N_loaded = length(n_loaded);
+        % Dimensions in each loaded subchannel
+        dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
+
+        % Total bits per dimension:
+        b_bar_discrete = 1/nDim*(sum(bn_discrete));
+        % Bit rate
+        Rb = sum(bn_discrete) / Tsym;
+
+        % Print the results of the new bit-load
+        fprintf('b_bar:     \t %g bits/dimension', b_bar_discrete)
+        fprintf('\nBit rate:\t %g mbps\n', Rb/1e6);
+        fprintf('## Restarting transmission...\n\n');
+
+        % Update the vector of modulation orders
+        modOrder = 2.^bn_discrete;
+        % Update modem objects
+        [modulator, demodulator] = dmtGenerateModems(modOrder, dim_per_subchannel);
+        % Re-generate modem look-up table
+        modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
+        % Re-generate the subchannel scaling factors
+        [Scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
+            En_discrete, dim_per_subchannel);
+
+        % Finally, reset the SER computation:
+        sym_err_n  = zeros(N_loaded, 1);
+        numErrs = 0; numDmtSym = 0; iTransmission = 0;
+    end
 
     %% Constellation plot for debugging
     if (debug && debug_constellation && modem_n(debug_tone) > 0 ...
