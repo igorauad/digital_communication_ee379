@@ -465,9 +465,9 @@ Pe_bar_n_lc = dmtPe(bn_discrete, SNR_n_lc, dim_per_subchannel);
 
 if (debug && debug_Pe)
     figure
-    semilogy(n_loaded, Pe_bar_n, 'linewidth', 1.1)
+    semilogy(0:N_subch-1, Pe_bar_n, 'linewidth', 1.1)
     hold on
-    semilogy(n_loaded, Pe_bar_n_lc, 'r')
+    semilogy(0:N_subch-1, Pe_bar_n_lc, 'r')
     xlabel('Subchannel');
     ylabel('$\bar{P_e}$', 'Interpreter', 'latex')
     legend('Water-filling', 'Levin-Campello')
