@@ -220,13 +220,72 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
             warning('MMSE-TEQ designed with complex taps');
         end
 
-        % New effective channel:
-        p_eff = conv(p,w);
-
         % Shortening SNR:
         ssnr_w = ssnr( w, p, delta, nu );
         fprintf('SSNR:\t %g dB\n', 10*log10(ssnr_w));
+    case 2
+fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
+        FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
+        w_norm_n =  FreqPrecoder.wk;
+    case 3
+fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
+        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, N,...
+            tdPrecoderPostCursor, windowing);
+        w_norm_n =  TimePrecoder.ici.wk;
+end
 
+%% Effective pulse response
+
+switch (equalizer)
+    case 1
+        % New effective channel:
+        p_eff = conv(p,w);
+    otherwise
+        p_eff = p;
+end
+
+%% Channel Frequency Response
+
+% Frequency domain response (use the effective pulse response in the FEQ)
+H = fft(p_eff, Nfft);
+
+% Store only the response at the used indices of the FFT
+Hn = H(subCh_tone_index_herm);
+
+%% Cursor
+switch (equalizer)
+    case 1
+        % MMSE-TEQ Chosen Delay
+        n0 = delta;
+        % The cursor considers the MMSE-TEQ delay.
+    otherwise
+        [~, iMax] = max(abs(p));
+        n0 = iMax - 1;
+end
+
+% Corresponding phase shift due to cursor
+phaseShift = exp(1j*2*pi*(n0/Nfft)*(subCh_tone_index_herm.' - 1));
+
+%% Frequency Equalizer
+FEQn    = (1 ./ (Hn .* phaseShift));
+
+%% ICPD PSD
+% Compute the ICPD PSD, which is considered in the ensuing computation of
+% the bit loading.
+%
+% Note: for the frequency and time-domain ICPD precoders (which should
+% fully cancel the ICPD), the ICPD is considered null.
+
+if (equalizer == 2 || equalizer == 3)
+    S_icpd = zeros(Nfft, 1);
+else
+    S_icpd = icpdPsd(p_eff, Nfft, Nfft, nu, tau, n0, Ex_bar, windowing);
+end
+
+%% Gain-to-noise Ratio
+
+switch (equalizer)
+    case 1
         % Notes:
         %   # 1) The water-filling solution assumes no ISI/ICI. Even though
         %   the TEQ constrains the pulse response energy to a portion that
@@ -242,67 +301,18 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         %   compounded response of the channel + equalizer, namely the
         %   effective response:
         H_eff = fft(p_eff, Nfft);
-        %   The gain to noise ratio at the receiver becomes:
-        gn_teq = (abs(H_eff).^2)./(N0_over_2 * abs(H_w).^2);
+        %   # 4) Then, assuming that the ICPD is uncorrelated to the noise,
+        %   the gain to noise ratio at the receiver becomes:
+        gn = (abs(H_eff).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
         %   Store only the used tones
-        gn_teq = gn_teq(subCh_tone_index_herm);
+        gn = gn(subCh_tone_index_herm);
         %   Note that if ICPD was not accounted, since H_eff = Hn .* H_w,
         %   the above gain-to-noise ratio would tend to be equivalent to
         %   (for all non-zero H_W):
         %       gn = (abs(Hn).^2) / N0_over_2;
         %   Ultimately, the gain-to-noise ratio is not being affected by
-        %   the TEQ in the expression. This can be the fallacy in the
-        %   model, specially regarding the frequency notches.
-    case 2
-fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
-        FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
-        w_norm_n =  FreqPrecoder.wk;
-    case 3
-fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
-        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, N,...
-            tdPrecoderPostCursor, windowing);
-        w_norm_n =  TimePrecoder.ici.wk;
-end
-
-%% Channel Freq Response and Frequency Equalizer
-
-% Frequency domain response
-switch (equalizer)
-    case 1
-        % Use the effective pulse response in the FEQ
-        H = fft(p_eff, Nfft);
-    otherwise
-        H = fft(p, Nfft);
-end
-
-% Store only the response at the used indices of the FFT
-Hn = H(subCh_tone_index_herm);
-
-% Cursor
-switch (equalizer)
-    case 1
-        % MMSE-TEQ Chosen Delay
-        n0 = delta;
-        % The cursor considers the MMSE-TEQ delay.
-    otherwise
-        [~, iMax] = max(abs(p));
-        n0 = iMax - 1;
-end
-
-% Corresponding phase shift due to cursor
-phaseShift = exp(1j*2*pi*(n0/Nfft)*(subCh_tone_index_herm.' - 1));
-
-% Frequency Equalizer
-FEQn    = (1 ./ (Hn .* phaseShift));
-
-%% Gain-to-noise Ratio
-
-switch (equalizer)
-    case 1
-        % For the MMSE-TEQ, the effective pulse responsive becomes the
-        % result of the convolution between the actual pulse response and
-        % the feed-forward equalizer.
-        gn = gn_teq;
+        %   the TEQ in the expression. This can be the fallacious in the
+        %   model.
     case 2
         % The energy increase in each subchannel is given by the Euclidean
         % norm of the corresponding row. Thus, the total energy after
@@ -326,9 +336,7 @@ switch (equalizer)
         % are accounted.
         gn = (abs(Hn).^2) ./ (w_norm_n * N0_over_2);
     otherwise
-        % When no equalizer is adopted, the ISI/ICI energy per dimension is
-        % taken into account in the bit loading
-        gn = (abs(Hn).^2) ./ (N0_over_2 + (icpd_psd.'));
+        gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
 end
 
 %% Water filling
