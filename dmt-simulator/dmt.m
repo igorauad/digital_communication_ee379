@@ -571,22 +571,7 @@ end
 
 %% Look-up table for each subchannel indicating the corresponding modem
 
-modem_n = zeros(length(subCh_tone_index), 1);
-
-for k = 1:length(subCh_tone_index) % Iterate over subchannels
-    if (dim_per_subchannel(k) == 2)
-        iModem = find (twoDim_const_orders == modOrder(k));
-        if (iModem)
-            modem_n(k) = iModem;
-        end
-    else
-        iModem = find (oneDim_const_orders == modOrder(k));
-        if (iModem)
-            modem_n(k) = length(twoDim_const_orders) + iModem;
-        end
-
-    end
-end
+modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
 
 %% Energy loading (constellation scaling factors) and minimum distances
 
