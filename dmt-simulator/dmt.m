@@ -538,36 +538,7 @@ fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc, 'omitnan'));
 % Modulation order on each subchannel
 modOrder = 2.^bn_discrete;
 
-oneDimModOrders     = modOrder(dim_per_subchannel == 1);
-twoDimModOrders     = modOrder(dim_per_subchannel == 2);
-oneDim_const_orders = unique(oneDimModOrders(oneDimModOrders~=1));
-twoDim_const_orders = unique(twoDimModOrders(twoDimModOrders~=1));
-
-%Preallocate modems
-modulator = cell(length(twoDim_const_orders), 1);
-demodulator = cell(length(twoDim_const_orders), 1);
-
-% Configure 2-dimensional modems for each distinct bit loading:
-for i = 1:length(twoDim_const_orders)
-    M = twoDim_const_orders(i);
-
-    if (mod(log2(M),2) ~= 0)
-        modulator{i} = modem.genqammod('Constellation', ...
-            qamHybridConstellation(M));
-        demodulator{i} = modem.genqamdemod('Constellation', ...
-            qamHybridConstellation(M));
-    else
-        modulator{i} = modem.qammod('M', M, 'SymbolOrder', 'Gray');
-        demodulator{i} = modem.qamdemod('M', M, 'SymbolOrder', 'Gray');
-    end
-end
-
-for l = 1:length(oneDim_const_orders)
-    i = i + 1;
-    M = oneDim_const_orders(l);
-    modulator{i} = modem.pammod('M', M, 'SymbolOrder', 'Gray');
-    demodulator{i} = modem.pamdemod('M', M, 'SymbolOrder', 'Gray');
-end
+[modulator, demodulator] = dmtGenerateModems(modOrder, dim_per_subchannel);
 
 %% Look-up table for each subchannel indicating the corresponding modem
 
