@@ -1,12 +1,12 @@
-function [S_icpd, S_post, S_pre] = icpdPsdMtx(Hisi, HpreIsi, Ex_bar, Ndft)
+function [S_icpd, S_post, S_pre] = icpdPsdMtx(Hisi, HpreIsi, Ex_arg, Ndft)
 % Insuficient Cyclic Prefix Distortion PSD Based on ISI/ICI Matrices
 % -------------------------------------------------------------------------
-%   [ S_icpd, S_post, S_pre ] = icpdPsd(Hisi, HpreIsi, Ex_bar, N)
+%   [ S_icpd, S_post, S_pre ] = icpdPsd(Hisi, HpreIsi, Ex_arg, N)
 %
 %   Inputs
 % Hisi     -> Post-cursor ISI Matrix
 % HpreIsi  -> Pre-cursor ISI Matrix
-% Ex_bar   -> Average energy per dimension
+% Ex_arg   -> Average energy per dimension or input autocorrelation matrix
 % Ndft     -> DFT Size
 %
 %   Notes:
@@ -14,8 +14,11 @@ function [S_icpd, S_post, S_pre] = icpdPsdMtx(Hisi, HpreIsi, Ex_bar, Ndft)
 % if a higher DFT resolution is sought. In this case, these matrices must
 % be zero-padded.
 %
-% 2) It is assumed that the transmit signal is uncorrelated, such that its
-% autocorrelation matrix is Ex_bar * eye(N).
+% 2) When the argument "Ex_arg" is a scalar, it is interpreted as the
+% average energy per dimension. In this case, it is assumed that the
+% transmit signal is uncorrelated, such that its autocorrelation matrix is
+% Ex_bar * eye(N). Otherwise (if "Ex_arg" is a matrix), it is interpreted
+% as the autocorrelation matrix.
 %
 % 3) Since the ISI PSD is identical to the ICI PSD, the ISI matrices (pre
 % and post cursor) are sufficient for the computation.
@@ -69,6 +72,15 @@ if (Ndft < N)
     error('DFT length should be higher than the number of subchannels');
 end
 
+if (numel(Ex_arg) > 1)
+    if (size(Ex_arg, 1) ~= Ndft)
+        error('Input autocorrelation should have dimensions of the DFT');
+    end
+    Rxx = Ex_arg;
+else
+    Rxx = Ex_arg * eye(Ndft);
+end
+
 % Unitary DFT Matrix
 Q = (1/sqrt(Ndft)) * fft(eye(Ndft));
 
@@ -85,12 +97,12 @@ end
 L = (Ndft/N); % PSD scaling factor
 
 % Preallocate
-S_post = 2 * L * diag(Ex_bar * Q * (Hisi * Hisi') * Q');
+S_post = real(2 * L * diag(Q * Hisi * Rxx * Hisi' * Q'));
 
 %% Pre-cursor PSD
 
 % Preallocate
-S_pre  = 2 * L * diag(Ex_bar * Q * (HpreIsi * HpreIsi') * Q');
+S_pre  = real(2 * L * diag(Q * HpreIsi * Rxx * HpreIsi' * Q'));
 
 %% Total ICPD PSD:
 

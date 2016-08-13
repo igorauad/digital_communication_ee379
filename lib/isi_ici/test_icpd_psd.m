@@ -45,7 +45,13 @@ end
 if (flat)
     En = [0 1*ones(1, Nfft/2 - 1) 0]; % Subchannel energy
 else
-    En = [0 10*randi(100, 1, Nfft/2 - 1) 0]; % Subchannel energy
+    % Note a large portion of the subchannels is purposely not loaded
+    % (energy set to zero). This disturbs the correlation matrix with
+    % respect to the assumption that it is equivalent to Ex_bar *
+    % eye(Nfft). In this case, the ICPD PSD computed using the measured Rxx
+    % (the one using the icpdPsdMtx function) tends to be more accurate.
+    En = [0 10*randi(100, 1, Nfft/8) ...
+        zeros(1, 3*Nfft/8 - 1) 0]; % Subchannel energy
 end
 scale_qam = zeros(Nfft, 1);
 for i = 1:length(En)
@@ -97,6 +103,8 @@ else
 end
 
 x_stream = x_ce(:);
+
+%% Received sequence
 
 y_stream = conv(x_stream, h);
 
@@ -176,9 +184,19 @@ Ex_bar
 [ S_icpd, S_post, S_pre ] = ...
     icpdPsd(h, Nfft, Nfft_psd, nu, tau, n0, Ex_bar, w);
 
-%% Attempt using matrix formulation
+%% Compare ICPD PSD computed using matrix formulation
+% IMPORTANT: the third argument of "icpdPsdMtx" can be a scalar (Ex_bar) or
+% a matrix (Rxx). When Ex_bar is passed, the function assumes the input is
+% uncorrelated and has Rxx = Ex_bar * eye(Nfft). Our goal here is to
+% contrast the ICPD PSD computed based on the assumption of
+% uncorrelatedness and the PSD computed with the correlation matrix Rxx
+% that is computed based on the transmit data.
 
-[ S_icpd2, S_post2, S_pre2 ] = icpdPsdMtx(Hisi, HpreIsi, Ex_bar, Nfft_psd);
+% Autocorrelation
+[r, l] = xcorr(x(:), Nfft_psd-1, 'unbiased');
+
+Rxx = toeplitz(r(Nfft_psd:end));
+[ S_icpd2, S_post2, S_pre2 ] = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft_psd);
 
 figure
 plot(10*log10(abs(S_icpd)))
@@ -199,24 +217,29 @@ plot(W, 10*log10(En_bar), 'g', 'linewidth', 1.1)
 hold on
 plot(W, 10*log10(Pxx*2*pi), 'b--')
 legend('Computed', 'Measured')
-title('Transmit Signal')
+title('Transmit Signal PSD')
 
 %% Plot Post-cursor PSDs
 
 figure
 plot(W, 10*log10(S_post/2), 'g', 'linewidth', 1.1)
 hold on
+plot(W, 10*log10(S_post2/2), 'y', 'linewidth', 1.1)
+hold on
 plot(W, 10*log10(Pici_ici*2*pi), 'b--')
 hold on
 plot(W, 10*log10(Pisi_isi*2*pi), 'r--')
-legend('Computed ISI/ICI', 'Measured ICI', 'Measured ISI')
+legend('Computed ISI/ICI', 'Computed ISI/ICI (w/ Rxx)',...
+    'Measured ICI', 'Measured ISI')
 title('Post-cursor ICI/ISI')
 
 figure
 plot(W, 10*log10(S_post), 'g', 'linewidth', 1.1)
 hold on
+plot(W, 10*log10(S_post2), 'y', 'linewidth', 1.1)
+hold on
 plot(W, 10*log10(Ppost_post*2*pi), 'b--')
-legend('Computed', 'Measured')
+legend('Computed', 'Computed (w/ Rxx)', 'Measured')
 title('Total Post-cursor ICPD')
 
 %% Plot Pre-cursor PSDs
@@ -224,17 +247,22 @@ title('Total Post-cursor ICPD')
 figure
 plot(W, 10*log10(S_pre/2), 'g', 'linewidth', 1.1)
 hold on
+plot(W, 10*log10(S_pre2/2), 'y', 'linewidth', 1.1)
+hold on
 plot(W, 10*log10(Ppreici_preici*2*pi), 'b--')
 hold on
 plot(W, 10*log10(Ppreisi_preisi*2*pi), 'r--')
-legend('Computed ISI/ICI', 'Measured ICI', 'Measured ISI')
+legend('Computed ISI/ICI', 'Computed ISI/ICI (w/ Rxx)',...
+    'Measured ICI', 'Measured ISI')
 title('Pre-cursor ICI/ISI')
 
 figure
 plot(W, 10*log10(S_pre), 'g', 'linewidth', 1.1)
 hold on
+plot(W, 10*log10(S_pre2), 'y', 'linewidth', 1.1)
+hold on
 plot(W, 10*log10(Ppre_pre*2*pi), 'b--')
-legend('Computed', 'Measured')
+legend('Computed', 'Computed (w/ Rxx)', 'Measured')
 title('Total Pre-cursor ICPD')
 
 %% Plot Total ICPD PSD
@@ -249,6 +277,9 @@ plot(W, 10*log10(icpd_psd), 'ks')
 hold on
 plot(W, 10*log10(S_icpd), 'g', 'linewidth', 1.1)
 hold on
+plot(W, 10*log10(S_icpd2), 'y', 'linewidth', 1.1)
+hold on
 plot(W, 10*log10(Picpd_icpd*2*pi), 'b--')
-legend('Old Computation', 'New Computation', 'Measured')
+legend('Old Computation', 'New Computation', ...
+    'New Computation (w/ Rxx)', 'Measured')
 title('Total ICPD')
