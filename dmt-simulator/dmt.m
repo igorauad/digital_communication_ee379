@@ -452,70 +452,15 @@ fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * nDim /1e6);
 
 %% Analysis of the Error Probability per dimension
 % Comparison between the water-filling and the discrete loading in terms of
-% the nearest-neighbors union bound (also known as Union Bound Estimate).
-% Variable "Ne" is used below to denote the average number of Nearest
-% Neighbors per real dimension.
+% the nearest-neighbors union bound probability of error.
 
 fprintf('\n----------------- Error Probabilities ------------------ \n\n');
 
-% Preallocate
-Pe_bar_n    = zeros(N_loaded, 1);
-Pe_bar_n_lc = zeros(N_loaded, 1);
+% Water-filling:
+Pe_bar_n    = dmtPe(bn, SNR_n, dim_per_subchannel);
+% Levin-Campello:
+Pe_bar_n_lc = dmtPe(bn_discrete, SNR_n_lc, dim_per_subchannel);
 
-for k = 1:N_loaded
-    % "iSubCh" iterates over the loaded subchannels, but does not give the
-    % exact DFT tone index.
-
-    if (dim_per_loaded_subchannel(k) == 2)
-        % QAM Nearest-neighbors Union Bound assuming QAM-SQ constellations
-        % for both even and odd loads. "Hybrid QAM" constellations are used
-        % as "Square" for odd loads.
-
-        % Water-filling (with fractional load):
-        if ((mod(bn(k),2) ~= 0))
-            % For odd b, Hybrid QAM is used:
-            M = 2^bn(k);
-            Ne = 2*(1 - sqrt(2/M) + 1/(2*M));
-            Pe_bar_n(k) = Ne * qfunc(sqrt( 3*SNR_n_norm(k)) );
-            % Note: the argument here should be actually:
-            %   sqrt((6 * SNR_n(k)) / (2*M -1)),
-            % which is approximately equivalent to sqrt( 3*SNR_n_norm(k))
-            % for sufficiently large M. The approximation won't be very
-            % tight for low M. Since for WF any fractional M is allowed,
-            % using the actual value will lead to higher than expected
-            % error probabilities, so we simply use the approximation. For
-            % LC the Pe computation will be tighter.
-        else
-            % QAM-SQ
-            Ne = 2 * (1 - 1/(2^bn_bar(k)));
-            Pe_bar_n(k) = Ne * qfunc(sqrt( 3*SNR_n_norm(k)) );
-        end
-
-        % Levin-Campello (LC):
-        if ((mod(bn_discrete(k),2) ~= 0))
-            % For odd b, Hybrid QAM is used
-            M = 2^bn_discrete(k);
-            Ne = 2*(1 - sqrt(2/M) + 1/(2*M));
-            Pe_bar_n_lc(k) = Ne * qfunc(sqrt((6 * SNR_n_lc(k))/(2*M -1)));
-            % Note the aforementioned q-function argument for Hybrid QAM
-        else
-            % QAM-SQ
-            Ne = 2 * (1 - 1/(2^bn_bar_lc(k)));
-            Pe_bar_n_lc(k) =  Ne * qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
-        end
-
-    else
-        % PAM Nearest-neighbors Union Bound
-
-        % Water-filling (with fractional load):
-        Ne = 2 * (1 - 1/(2^bn_bar(k)));
-        Pe_bar_n(k) = Ne * qfunc(sqrt( 3*SNR_n_norm(k)) );
-
-        % Levin-Campello (LC):
-        Ne = 2 * (1 - 1/(2^bn_bar_lc(k)));
-        Pe_bar_n_lc(k) = Ne * qfunc(sqrt( 3*SNR_n_norm_lc(k) ));
-    end
-end
 
 if (debug && debug_Pe)
     figure
@@ -528,6 +473,10 @@ if (debug && debug_Pe)
     title('Pe per dimension on each subchannel')
     grid on
 end
+
+% NNUB Pe per dimension:
+Pe_bar    = mean(Pe_bar_n, 'omitnan');
+Pe_bar_lc = mean(Pe_bar_n_lc, 'omitnan');
 
 fprintf('Approximate NNUB Pe per dimension:\n');
 fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n, 'omitnan'));
