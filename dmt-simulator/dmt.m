@@ -832,13 +832,15 @@ fprintf('Pe_bar:       \t %g\n', mean(ser_n_bar));
 
 if (debug && debug_Pe)
     figure
-    stem(ser_n_bar)
+    semilogy(ser_n_bar)
     hold on
-    stem(Pe_bar_n, 'g')
+    semilogy(Pe_bar_n, 'g')
     hold on
-    stem(Pe_bar_n_lc, 'r')
-    title('Results: Pe per dimension')
+    semilogy(Pe_bar_n_lc, 'r')
+    title('Measured SER per dimension vs. nominal $\bar{Pe}$', ...
+        'Interpreter', 'latex')
     xlabel('Subchannel (n)')
-    ylabel('$\bar{Pe}(n)$')
+    ylabel('$\bar{Pe}(n)$', 'Interpreter', 'latex')
     legend('Measured','WF','LC')
+    grid on
 end
