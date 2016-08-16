@@ -208,8 +208,8 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         % Search optimum length and delay for the TEQ design
         [nTaps, delta] = optimizeTeq(teqType, p, nu, L, N0_over_2, ...
             Ex_bar, Nfft, debug_teq);
-        fprintf('Optimal Equalizer Length:\t %d\n', nTaps);
-        fprintf('Optimal Delay:           \t %d\n', delta);
+        fprintf('Chosen Equalizer Length:\t %d\n', nTaps);
+        fprintf('Chosen Delay:           \t %d\n', delta);
 
         % Design final TEQ
         switch (teqType)

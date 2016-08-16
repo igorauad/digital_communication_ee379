@@ -50,16 +50,17 @@ end
 % Equalizer length is advised in [3] to be 3-5 times the difference of
 % channel and prefix lengths. In contrast, [4] states that typical DMT
 % transceivers use an equalizer (there called SIRF) length which is shorter
-% than the length of the CP. We adopt the guidelines of [3] in the sequel.
-% However, in the specific case of MaxSSNR TEQ, the equalizer length must
-% be less than or equal to the cyclic prefix length in order for one matrix
-% of the derivation to be positive semidefinite. Therefore, we also
-% consider the exceptional case of [4].
+% than the length of the CP. We opt for the guidelines of [4] in the
+% sequel. In the specific case of MaxSSNR TEQ, the equalizer length must
+% strictly be less than or equal to the cyclic prefix length in order for
+% one matrix of the derivation to be positive semidefinite. For the other
+% equalizers, we relax the constrain slightly and force the length to be
+% less than twice the length of the CP.
 
 switch (type)
     case {0,2} % MSE and GeoSNR
-        maxTaps  = 5*(length(p) - nu);
-        minTaps  = 3*(length(p) - nu);
+        maxTaps  = 2*nu;
+        minTaps  = l;
     case 1 % SSNR
         maxTaps  = nu;
         minTaps  = l;
@@ -163,8 +164,11 @@ end
 %% Delay and equalizer length choices
 
 % Find the optimal combination of number of taps and delay:
-maxSnr = max(objective(~isnan(objective)));
-[i, k] = find(objective == maxSnr);
+maximum = max(objective(~isnan(objective)));
+
+% Choose the equalizer that yields an objective value within 5% of the
+% maximum, but within the minimum length and delay.
+[i, k] = find(objective > 0.95*maximum);
 nTaps_o = min(nTap_vec(i));
 delta_o = min(delta_vec(k));
 
