@@ -510,8 +510,8 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 
 % Preallocate
 X          = zeros(Nfft, nSymbols);
-tx_data    = zeros(N_loaded, nSymbols);
-rx_data    = zeros(N_loaded, nSymbols);
+tx_data    = zeros(N_subch, nSymbols);
+rx_data    = zeros(N_subch, nSymbols);
 sym_err_n  = zeros(N_loaded, 1);
 
 numErrs = 0; numDmtSym = 0;
@@ -526,17 +526,17 @@ iTransmission = 0;
 while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     iTransmission = iTransmission + 1;
 
-    % Random Symbol generation
-    for k = 1:N_loaded
-        tx_data(k, :) = randi(modOrder(k), 1, nSymbols) - 1;
-    end
+    %% Random DMT Symbol generation
 
-    %% Constellation Encoding
-    for k = 1:N_loaded
-        if (modem_n(k) > 0)
-            X(n_loaded(k), :) = Scale_n(k) * ...
-                modulator{modem_n(k)}.modulate(tx_data(k, :));
-        end
+    % Iterate over the distinct modulators
+    for iModem = 1:length(modulator)
+        M = modulator{iModem}.M;       % Modulation order
+        iSubChs = (modem_n == iModem); % Loaded subchannels
+        % Generate random data
+        tx_data(iSubChs, :) = randi(M, sum(iSubChs), nSymbols) - 1;
+        % Constellation Encoding
+        X(subCh_tone_index(iSubChs), :) = diag(Scale_n(iSubChs)) * ...
+                modulator{iModem}.modulate(tx_data(iSubChs, :));
     end
 
     % Hermitian symmetry
@@ -688,18 +688,23 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             Z = diag(FEQn) * Y(subCh_tone_index_herm, :);
 
             %% Constellation decoding (decision)
-            for k = 1:N_loaded
-                if (modem_n(k) > 0)
-                    rx_data(k, :) = demodulator{modem_n(k)}.demodulate(...
-                        (1/Scale_n(k)) * Z(k, :));
-                end
+
+            % Iterate over the distinct demodulators
+            for iModem = 1:length(demodulator)
+                iSubChs = (modem_n == iModem); % Loaded subchannels
+                % Demodulate
+                rx_data(iSubChs, :) = ...
+                    demodulator{iModem}.demodulate(...
+                    diag(1./Scale_n(iSubChs)) * Z(iSubChs, :));
             end
+
     end
 
     %% Error results
 
     % Symbol error count
-    sym_err_n = sym_err_n + symerr(tx_data, rx_data, 'row-wise');
+    sym_err_n = sym_err_n + symerr(tx_data(bn_discrete > 0, :), ...
+                                  rx_data(bn_discrete > 0, :), 'row-wise');
     % Symbol error rate per subchannel
     ser_n     = sym_err_n / (iTransmission * nSymbols);
     % Per-dimensional symbol error rate per subchannel
@@ -814,9 +819,6 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Finally, reset the SER computation:
         sym_err_n  = zeros(N_loaded, 1);
         numErrs = 0; numDmtSym = 0; iTransmission = 0;
-        % And update the dimensions of the Tx/Rx arrays
-        tx_data    = zeros(N_loaded, nSymbols);
-        rx_data    = zeros(N_loaded, nSymbols);
     end
 
     %% Constellation plot for debugging
