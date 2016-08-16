@@ -79,6 +79,12 @@ POST_PRE_ICPD_FLAG = 0;
 TEQ_MMSE    = 0;
 TEQ_SSNR    = 1;
 
+% Equalizer Types
+EQ_NONE      = 0;
+EQ_TEQ       = 1;
+EQ_FREQ_PREC = 2;
+EQ_TIME_PREC = 3;
+
 % Time-domain Precoder
 tdPrecoderPostCursor = 0;
 tdPrecoderPostPreCursor = 1;
@@ -191,7 +197,7 @@ end
 % subchannels, the TEQ is redesigned after bit loading.
 
 switch (equalizer)
-    case 1
+    case EQ_TEQ
 
 fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
@@ -223,11 +229,11 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         % Shortening SNR:
         ssnr_w = ssnr( w, p, delta, nu );
         fprintf('SSNR:\t %g dB\n', 10*log10(ssnr_w));
-    case 2
+    case EQ_FREQ_PREC
 fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
         FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
         w_norm_n =  FreqPrecoder.wk;
-    case 3
+    case EQ_TIME_PREC
 fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
         TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, N,...
             tdPrecoderPostCursor, windowing);
@@ -237,7 +243,7 @@ end
 %% Effective pulse response
 
 switch (equalizer)
-    case 1
+    case EQ_TEQ
         % New effective channel:
         p_eff = conv(p,w);
     otherwise
@@ -254,7 +260,7 @@ Hn = H(subCh_tone_index_herm);
 
 %% Cursor
 switch (equalizer)
-    case 1
+    case EQ_TEQ
         % MMSE-TEQ Chosen Delay
         n0 = delta;
         % The cursor considers the MMSE-TEQ delay.
@@ -276,7 +282,7 @@ FEQn    = (1 ./ (Hn .* phaseShift));
 % Note: for the frequency and time-domain ICPD precoders (which should
 % fully cancel the ICPD), the ICPD is considered null.
 
-if (equalizer == 2 || equalizer == 3)
+if (equalizer == EQ_FREQ_PREC || equalizer == EQ_TIME_PREC)
     S_icpd = zeros(Nfft, 1);
 else
     S_icpd = icpdPsd(p_eff, Nfft, Nfft, nu, tau, n0, Ex_bar, windowing);
@@ -285,7 +291,7 @@ end
 %% Gain-to-noise Ratio
 
 switch (equalizer)
-    case 1
+    case EQ_TEQ
         % Notes:
         %   # 1) The water-filling solution assumes no ISI/ICI. Even though
         %   the TEQ constrains the pulse response energy to a portion that
@@ -367,7 +373,7 @@ SNR_n_norm = SNR_n ./ (2.^(2*bn_bar) - 1);
 
 fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n', SNRdmt)
 
-if (equalizer == 1)
+if (equalizer == EQ_TEQ)
     fprintf('Note: shortened response was used for water-filling.\n');
 end
 
@@ -538,13 +544,13 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     X(Nfft/2 + 2:Nfft, :) = flipud( conj( X(2:Nfft/2, :) ) );
 
     %% Per-tone Precoder
-    if (equalizer == 2)
+    if (equalizer == EQ_FREQ_PREC)
         X = precodeFreqDomain( X, FreqPrecoder, modOrder, dmin_n );
     end
 
     x = sqrt(Nfft) * ifft(X, Nfft);
 
-    if (equalizer == 3)
+    if (equalizer == EQ_TIME_PREC)
         x = precodeTimeDomain( x, TimePrecoder );
     end
 
@@ -643,7 +649,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Time-domain Equalization
     switch (equalizer)
-        case 1
+        case EQ_TEQ
             z = conv(w, y);
         otherwise
             z = y;
@@ -666,13 +672,13 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Frequency-domain Equalization
     switch (equalizer)
-        case 3 % Time-domain ISI DFE
+        case EQ_TIME_PREC % Time-domain ISI DFE
             % Note: the section name may be misleading. The receiver below
             % equalizes ISI using time-domain DMT symbols. However, its
             % derivation is based in the frequency-domain.
             [ rx_symbols, Z ] = dmtTdDfeReceiver(y_no_ext, modulator, ...
                 demodulator, modem_n, Scale_n, TimePrecoder, FEQn);
-        case 2 % DMT with additional modulo operation
+        case EQ_FREQ_PREC % DMT with additional modulo operation
             [ rx_symbols, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
                 modem_n, Scale_n, FEQn, modOrder, dmin_n);
         otherwise
@@ -734,10 +740,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
         % Update the gain-to-noise ratio:
         switch (equalizer)
-            case 1
+            case EQ_TEQ
                 gn = (abs(H_eff).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
                 gn = gn(subCh_tone_index_herm);
-            case 0
+            case EQ_NONE
                 gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
         end
 
