@@ -63,6 +63,11 @@ h_padded = [p;  zeros(N - Lh, 1)];
 % Note h has to be a column vector
 Hcirc = toeplitz(h_padded, flipud(circshift(h_padded, -1)));
 
+%% Windowing Sequence
+
+% Window
+dmtWindow = designDmtWindow(N, nu, tau);
+
 %% Post-cursor ICPD
 
 % Preallocate
@@ -70,30 +75,31 @@ Hici = zeros(N,N); % Post-cursor ICI Matrix
 Hisi = zeros(N,N); % Post-cursor ISI Matrix
 
 % Check whether post-cursor ICPD effectively occurs
-assert(delta > 0, 'Post-cursor ICPD does not occur');
+if (delta <= 0)
+    warning('Post-cursor ICPD does not occur');
+else
 
-% Window
-dmtWindow = designDmtWindow(N, nu, tau);
+    % Core Convolution (Toeplitz) Matrix
+    Ht = toeplitz([p(end) zeros(1, delta-1)], ...
+        flipud(p((nu - tau + n0 + 2):end)));
 
-% Core Convolution (Toeplitz) Matrix
-Ht = toeplitz([p(end) zeros(1, delta-1)], ...
-    flipud(p((nu - tau + n0 + 2):end)));
+    % Window Diagonal Matrix
+    W_w = diag(dmtWindow(end-delta+1:end));
 
-% Window Diagonal Matrix
-W_w = diag(dmtWindow(end-delta+1:end));
+    % Windowed Core Matrix
+    Ht_windowed = Ht * W_w;
 
-% Windowed Core Matrix
-Ht_windowed = Ht * W_w;
+    % Post-cursor ISI Matrix
+    Hisi(1:delta, (N - delta + 1):N ) = Ht_windowed;
+    % It is assumed that the column-vector DMT symbols will be circularly
+    % shifted by -tau (upwards) before multiplying Hisi.
 
-% Post-cursor ISI Matrix
-Hisi(1:delta, (N - delta + 1):N ) = Ht_windowed;
-% It is assumed that the column-vector DMT symbols will be circularly
-% shifted by -tau (upwards) before multiplying Hisi.
+    % Post-cursor ICI Matrix
+    Hici(1:delta, (N - L + n0 + 1):(N -nu + tau)) = -Ht_windowed;
+    % It is assumed that the DMT symbols that multiply Hici are not
+    % shifted.
 
-% Post-cursor ICI Matrix
-Hici(1:delta, (N - L + n0 + 1):(N -nu + tau)) = -Ht_windowed;
-% It is assumed that the DMT symbols that multiply Hici are not shifted.
-
+end
 %% Pre-cursor ICI
 
 % Check Pre-Cursor ICPD Energy
