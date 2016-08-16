@@ -803,7 +803,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Update the vector of modulation orders
         modOrder = 2.^bn_discrete;
         % Update modem objects
-        [modulator, demodulator] = dmtGenerateModems(modOrder, dim_per_subchannel);
+        [modulator, demodulator] = dmtGenerateModems(modOrder, ...
+            dim_per_subchannel);
         % Re-generate modem look-up table
         modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
         % Re-generate the subchannel scaling factors
@@ -813,6 +814,9 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Finally, reset the SER computation:
         sym_err_n  = zeros(N_loaded, 1);
         numErrs = 0; numDmtSym = 0; iTransmission = 0;
+        % And update the dimensions of the Tx/Rx arrays
+        tx_data    = zeros(N_loaded, nSymbols);
+        rx_data    = zeros(N_loaded, nSymbols);
     end
 
     %% Constellation plot for debugging
