@@ -714,24 +714,52 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     fprintf('nErrors:\t%g\t', numErrs);
     fprintf('nDMTSymbols:\t%g\n', numDmtSym);
 
-    %% Re-training of the bit-loading
+    %% Re-training of the bit-loading (and possibly the equalizer)
     % The initial bit-loading can often be innacurate, mostly due to the
     % ICPD that is initially computed assuming the input is perfectly
     % uncorrelated. During show-time, we can compute the actual correlation
     % of the transmit signal and use it to compute a more accurate ICPD
     % PSD. Using this PSD, in turn, we update the bit-load and restart the
-    % transmission.
+    % transmission. In case the MMSE-LE TEQ is adopted, it can also be
+    % updated using the actual estimated input autocorrelation Rxx.
 
     % If the error is too high, bit-loading shall be re-trained
-    if (mean(ser_n_bar) > 10 * Pe_bar_lc)
+    if (mean(ser_n_bar) > 5 * Pe_bar_lc)
         fprintf('\n## Re-training the ICPD PSD and the bit-load vector...\n');
+
+        % Input Autocorrelation based on actual transmit data
+        [r, l] = xcorr(x(:), Nfft-1, 'unbiased');
+
+        % For an MMSE_TEQ
+        if (equalizer == EQ_TEQ && teqType == TEQ_MMSE)
+            % Autocorrelation matrix with the appropriate dimensions
+            Rxx = toeplitz(r(Nfft:Nfft + floor(nTaps/L)*L + (Lh-1) - 1));
+            % Re-design the TEQ
+            [w, SNRteq] = ...
+                mmse_teq(p, L, delta, floor(nTaps/L), nu, Rxx, N0_over_2);
+            fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
+            % Shortening SNR:
+            ssnr_w = ssnr( w, p, delta, nu );
+            fprintf('SSNR:\t %g dB\n', 10*log10(ssnr_w));
+            if(~isreal(w))
+                warning('MMSE-TEQ designed with complex taps');
+            end
+            % Update the effective channel:
+            p_eff = conv(p,w);
+            % Update the corresponding frequency domain response:
+            H = fft(p_eff, Nfft);
+            % Store only the response at the used indices of the FFT
+            Hn = H(subCh_tone_index_herm);
+            % Equalizer freq. response:
+            H_w = fft(w, Nfft);
+            % Update the FEQ
+            FEQn    = (1 ./ (Hn .* phaseShift));
+        end
 
         % Compute the ISI matrices
         [Hisi, ~, ~, HpreIsi, ~] = ...
             dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
-        % Input Autocorrelation based on actual transmit data
-        [r, l] = xcorr(x(:), Nfft-1, 'unbiased');
-        % Autocorrelation Matrix
+        % Nfft x Nfft Autocorrelation Matrix
         Rxx = toeplitz(r(Nfft:end));
         % Update the ICPD based on the ISI Matrices and the autocorrelation
         % matrix
