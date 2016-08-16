@@ -305,11 +305,10 @@ switch (equalizer)
         H_w = fft(w, Nfft);
         %   # 3) Meanwhile, the transmit signal is subject to the
         %   compounded response of the channel + equalizer, namely the
-        %   effective response:
-        H_eff = fft(p_eff, Nfft);
+        %   effective response p_eff, whose DFT is "H".
         %   # 4) Then, assuming that the ICPD is uncorrelated to the noise,
         %   the gain to noise ratio at the receiver becomes:
-        gn = (abs(H_eff).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
+        gn = (abs(H).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
         %   Store only the used tones
         gn = gn(subCh_tone_index_herm);
         %   Note that if ICPD was not accounted, since H_eff = Hn .* H_w,
@@ -741,10 +740,11 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Update the gain-to-noise ratio:
         switch (equalizer)
             case EQ_TEQ
-                gn = (abs(H_eff).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
+                gn = (abs(H).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
                 gn = gn(subCh_tone_index_herm);
             case EQ_NONE
-                gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
+                gn = (abs(Hn).^2) ./ ...
+                    (N0_over_2 + S_icpd(subCh_tone_index_herm).');
         end
 
         % Rate-adaptive Levin-Campello loading:
