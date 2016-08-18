@@ -33,6 +33,8 @@ teqType    = 0;         % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
 % Monte-Carlo Parameters
 maxNumErrs   = 100;
 maxNumDmtSym = 1e12;
+% Channel
+channelChoice = 0;
 
 %% Derived computations:
 
@@ -133,8 +135,6 @@ dim_per_subchannel   = dim_per_dft_tone(subCh_tone_index);
 N_subch  = length(subCh_tone_index);
 
 %% Pulse Response
-
-channelChoice = 2;
 
 switch (channelChoice)
     case 0
