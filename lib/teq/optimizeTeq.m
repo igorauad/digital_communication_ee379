@@ -35,6 +35,8 @@ function [ nTaps_o, delta_o ] = optimizeTeq(type, p, nu, l, sigma, Ex_bar, N, de
 % [4] P. J. W. Melsa, R. C. Younce and C. E. Rohrs, "Impulse response
 %     shortening for discrete multitone transceivers," in IEEE Transactions
 %     on Communications, vol. 44, no. 12, pp. 1662-1672, Dec 1996.
+% [5] Efficiently Computed Reduced-Parameter Input-Aided MMSE Equalizers
+%     for ML Detection: A Unified Approach
 
 if (nargin > 7)
     if (debug)
@@ -167,13 +169,17 @@ for i = 1:nTap_length
             case 0 % MSE
                 type_label = 'MSE';
                 objective_label = '10\\log(SNRmfb)';
-                % Design the TEQ and evaluate the resulting SNRmfb:
-                [w, SNRteq] = ...
-                    mmse_teq(p, l, delta, floor(nTaps/l), nu, Ex_bar, ...
-                    sigma);
-                % Maximizes the TEQ MFB that considers the minimzed MSE in
-                % the denominator:
-                objective(i,k) = SNRteq;
+                % Consider the contraint presented in [5] for the delay
+                % delta with respect to the equalizer length.
+                if (delta <= Nf + (length(p) - 1) - nu - 1)
+                    % Design the TEQ and evaluate the resulting SNRmfb:
+                    [w, SNRteq] = ...
+                        mmse_teq(p, l, delta, Nf, nu, Ex_bar, ...
+                        sigma);
+                    % Maximizes the TEQ MFB that considers the minimzed MSE
+                    % in the denominator:
+                    objective(i,k) = SNRteq;
+                end
             case 1 % SSNR
                 type_label = 'SSNR';
                 objective_label = '10\\log(SSNR)';
