@@ -118,6 +118,8 @@ objective = NaN * ones(nTap_length, nDelta_length);
 for i = 1:nTap_length
     % Number of taps
     nTaps = nTap_vec(i);
+    % Symbol-spaced length of the equalizer (actual length is Nf*l)
+    Nf = floor(nTaps/l);
 
     % Search delay
     for k = 1:length(delta_vec)
@@ -139,7 +141,7 @@ for i = 1:nTap_length
                 type_label = 'SSNR';
                 objective_label = '10\\log(SSNR)';
                 % Design the TEQ and evaluate the resulting SSNR:
-                [w, SSNR] = ssnr_teq(p, l, delta, floor(nTaps/l), nu);
+                [w, SSNR] = ssnr_teq(p, l, delta, Nf, nu);
                 % Maximizes the Shortening SNR
                 objective(i,k) = SSNR;
             case 2 % Geo SNR

@@ -220,14 +220,15 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         fprintf('Chosen Delay:           \t %d\n', delta);
 
         % Design final TEQ
+        Nf = floor(nTaps/L);
         switch (teqType)
             case TEQ_MMSE
                 [w, SNRteq] = ...
-                    mmse_teq(p, L, delta, floor(nTaps/L), nu, Ex_bar, ...
-                    N0_over_2, debug_teq);
+                    mmse_teq(p, L, delta, Nf, nu, Ex_bar, N0_over_2, ...
+                    debug_teq);
                 fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
             case TEQ_SSNR
-                w = ssnr_teq(p, L, delta, floor(nTaps/L), nu, debug_teq);
+                w = ssnr_teq(p, L, delta, Nf, nu, debug_teq);
         end
 
         if(~isreal(w))
@@ -742,7 +743,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             Rxx = toeplitz(r(Nfft:Nfft + floor(nTaps/L)*L + (Lh-1) - 1));
             % Re-design the TEQ
             [w, SNRteq] = ...
-                mmse_teq(p, L, delta, floor(nTaps/L), nu, Rxx, N0_over_2);
+                mmse_teq(p, L, delta, Nf, nu, Rxx, N0_over_2, debug_teq);
             fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
             % Shortening SNR:
             ssnr_w = ssnr( w, p, delta, nu );
