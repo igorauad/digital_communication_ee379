@@ -46,21 +46,37 @@ else
     show_plots = 0;
 end
 
+%% Channel Length (considering energy)
+
+chLenThresh = 5e-4;
+chLen = find(abs(p) > chLenThresh, 1, 'last') - ...
+    find(abs(p) > chLenThresh, 1, 'first');
+
 %% Equalizer Length Range
 % Equalizer length is advised in [3] to be 3-5 times the difference of
 % channel and prefix lengths. In contrast, [4] states that typical DMT
 % transceivers use an equalizer (there called SIRF) length which is shorter
-% than the length of the CP. We opt for the guidelines of [4] in the
-% sequel. In the specific case of MaxSSNR TEQ, the equalizer length must
-% strictly be less than or equal to the cyclic prefix length in order for
-% one matrix of the derivation to be positive semidefinite. For the other
-% equalizers, we relax the constrain slightly and force the length to be
-% less than twice the length of the CP.
+% than the length of the CP. For the MMSE-TEQ, we opt to adapt the
+% guidelines of [3] to only 1 to 3 times the difference of channel and
+% prefix lengths. The reason is that 3-5 times the difference yields
+% lengeths that are too long, so that the simulation becomes very slow. In
+% the specific case of MaxSSNR TEQ, the equalizer length must strictly be
+% less than or equal to the cyclic prefix length in order for one matrix of
+% the derivation to be positive semidefinite.
 
 switch (type)
     case {0,2} % MSE and GeoSNR
-        maxTaps  = 2*nu;
-        minTaps  = l;
+        maxTaps  = 3*(chLen - nu);
+        minTaps  = 1*(chLen - nu);
+        % Force at least a range of nu
+        if (maxTaps < minTaps + nu)
+            maxTaps = minTaps + nu;
+        end
+        % Also avoid equalizers that are longer than the impulse response.
+        if (maxTaps > length(p))
+            maxTaps = length(p);
+        end
+
     case 1 % SSNR
         maxTaps  = nu;
         minTaps  = l;
@@ -76,7 +92,18 @@ end
 % Vector of TEQ lengths:
 nTap_vec = minTaps:maxTaps;
 
+% Downsample to avoid a very long search
+searchLength = 20;
+step_size = round(length(nTap_vec)/searchLength);
+if (step_size > 1)
+    nTap_vec = downsample(nTap_vec, step_size);
+else
+    % Step size can be rounded to 0. In this case, it is forced to 1.
+    step_size = 1;
+end
+
 fprintf('Optimizing TEQ length between %d and %d\n', minTaps, maxTaps);
+fprintf('TEQ Length search step:\t %d\n', step_size);
 
 %% Delay Range
 % Desired delay is advised in [3] to be the location of nu-length window of
@@ -103,7 +130,17 @@ delta_max  = iWinCenter + ceil(maxTaps/2);
 % Vector of delays:
 delta_vec  = delta_min:delta_max;
 
+% Downsample to avoid a very long search
+step_size = round(length(delta_vec)/searchLength);
+if (step_size > 1)
+    delta_vec = downsample(delta_vec, step_size);
+else
+    % Step size can be rounded to 0. In this case, it is forced to 1.
+    step_size = 1;
+end
+
 fprintf('Optimizing delay between %d and %d\n', delta_min, delta_max);
+fprintf('Delay search step:\t %d\n', step_size);
 
 %% Initialize
 
