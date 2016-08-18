@@ -191,6 +191,15 @@ else
     tau = 0;
 end
 
+%% Cursor
+% Except for when the TEQ is used, the cursor corresponds to the index of
+% the peak in the CIR.
+
+if (equalizer ~= EQ_TEQ)
+    [~, iMax] = max(abs(p));
+    n0 = iMax - 1;
+end
+
 %% Equalizers
 % The TEQ is designed before loading, by assuming flat input spectrum.
 % However, since bit loading alters the energy allocation among
@@ -198,7 +207,6 @@ end
 
 switch (equalizer)
     case EQ_TEQ
-
 fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
         if (nu >= (Lh - 1))
@@ -229,6 +237,10 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
         % Shortening SNR:
         ssnr_w = ssnr( w, p, delta, nu );
         fprintf('SSNR:\t %g dB\n', 10*log10(ssnr_w));
+
+        % Cursor based on the TEQ delay.
+        n0 = delta;
+
     case EQ_FREQ_PREC
 fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
         FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
@@ -257,17 +269,6 @@ H = fft(p_eff, Nfft);
 
 % Store only the response at the used indices of the FFT
 Hn = H(subCh_tone_index_herm);
-
-%% Cursor
-switch (equalizer)
-    case EQ_TEQ
-        % MMSE-TEQ Chosen Delay
-        n0 = delta;
-        % The cursor considers the MMSE-TEQ delay.
-    otherwise
-        [~, iMax] = max(abs(p));
-        n0 = iMax - 1;
-end
 
 % Corresponding phase shift due to cursor
 phaseShift = exp(1j*2*pi*(n0/Nfft)*(subCh_tone_index_herm.' - 1));
