@@ -116,27 +116,30 @@ end
 HpreIci = zeros(N, N);
 HpreIsi = zeros(N, N);
 
-% Core Convolution (Toeplitz) Matrix
-H_tilde_t = toeplitz(p(1:n0), [p(1) zeros(1, n0 - 1)]);
+% Check whether pre-cursor ICPD effectively occurs
+if (n0 > 0)
+    % Core Convolution (Toeplitz) Matrix
+    H_tilde_t = toeplitz(p(1:n0), [p(1) zeros(1, n0 - 1)]);
 
-% Window Matrix
-W_tilde_w = diag(dmtWindow(1:n0));
+    % Window Matrix
+    W_tilde_w = diag(dmtWindow(1:n0));
 
-% Windowed Core Matrix
-H_tilde_t_windowed = H_tilde_t * W_tilde_w;
+    % Windowed Core Matrix
+    H_tilde_t_windowed = H_tilde_t * W_tilde_w;
 
-if (computeHpreIsi) % Pre-cursor ICI is also mitigated
-    % ISI Matrix
-    HpreIsi(N-n0+1:end,1:n0) = H_tilde_t_windowed;
-    % It is assumed that the column-vector DMT symbols will be circularly
-    % shifted by nu (downwards) before multiplying HpreIsi.
-end
+    if (computeHpreIsi) % Pre-cursor ICI is also mitigated
+        % ISI Matrix
+        HpreIsi(N-n0+1:end,1:n0) = H_tilde_t_windowed;
+        % It is assumed that the column-vector DMT symbols will be circularly
+        % shifted by nu (downwards) before multiplying HpreIsi.
+    end
 
-if (computeHpreIci)
-    % ICI Matrix
-    HpreIci = -HpreIsi;
-    % It is assumed that the DMT symbols that multiply HpreIci are not
-    % shifted.
+    if (computeHpreIci)
+        % ICI Matrix
+        HpreIci = -HpreIsi;
+        % It is assumed that the DMT symbols that multiply HpreIci are not
+        % shifted.
+    end
 end
 
 end
