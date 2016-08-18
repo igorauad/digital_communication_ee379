@@ -1,4 +1,5 @@
-function [ rx_sym, Z ] = dmtTdDfeReceiver(y, modulator, demodulator, modChoice, scale, TD, FEQ)
+function [ rx_data, Z ] = dmtTdDfeReceiver(y, modulator, demodulator, ...
+    modChoice, scale, TD, FEQ, usedTones)
 % DMT Time-domain Decision-feedback Receiver
 % ------------------------------------------------------------------------
 % dmtTdDfeReceiver(y, modulator, demodulator, modChoice, scale, TD, FEQ)
@@ -14,16 +15,17 @@ function [ rx_sym, Z ] = dmtTdDfeReceiver(y, modulator, demodulator, modChoice, 
 % scale         - Scaling factors for each constellation
 % TD            - Structure with the Time-domain Precoder/Equalizer design
 % FEQ           - FEQ Taps (Hermitian vector)
+% usedTones     - Vector indicating the DFT tones that are used
 %
 %   Outputs:
-% rx_sym        - Decision output data
+% rx_data       - Decision output data
 
 % Infer number of symbols and FFT size
 nSymbols   = size(y, 2);
 N          = size(y, 1);
 
 % Preallocate
-rx_sym = zeros(N/2 + 1, nSymbols);
+rx_data = zeros(N/2 + 1, nSymbols);
 
 for iSymbol = 1:nSymbols
     % ISI equalization, except for the first symbol:
@@ -37,7 +39,7 @@ for iSymbol = 1:nSymbols
     Y = fft(y(:, iSymbol)) / sqrt(N);
 
     % FEQ + Detection:
-    Z = diag(FEQ) * Y;
+    Z = diag(FEQ) * Y(usedTones, :);
 
     % Erase "sliced" symbol from previous iteration
     X_tx_p = zeros(N/2 + 1, 1);
@@ -45,14 +47,14 @@ for iSymbol = 1:nSymbols
     for iModem = 1:length(demodulator)
         iTones = (modChoice == iModem);
         % Demodulate
-        rx_sym(iTones, iSymbol) = ...
+        rx_data(iTones, iSymbol) = ...
             demodulator{iModem}.demodulate(...
             (1./scale(iTones)) .* Z(iTones));
         % And modulate again to reconstruct the Tx symbol ("sliced"
         % symbol)
-        X_tx_p(iTones) = scale(iTones) .* ...
+        X_tx_p(usedTones(iTones)) = scale(iTones) .* ...
             modulator{iModem}.modulate(...
-            rx_sym(iTones, iSymbol));
+            rx_data(iTones, iSymbol));
     end
 
     % Re-generate the original freq-domain Tx symbol:

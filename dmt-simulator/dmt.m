@@ -244,11 +244,11 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
     case EQ_FREQ_PREC
 fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
-        FreqPrecoder = dmtFreqPrecoder(p, N, nu, tau, n0, windowing);
+        FreqPrecoder = dmtFreqPrecoder(p, Nfft, nu, tau, n0, windowing);
         w_norm_n =  FreqPrecoder.wk;
     case EQ_TIME_PREC
 fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
-        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, N,...
+        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, Nfft,...
             tdPrecoderPostCursor, windowing);
         w_norm_n =  TimePrecoder.ici.wk;
 end
@@ -335,13 +335,13 @@ switch (equalizer)
         % Furthermore, note that water-fill does not lead to flat energy
         % load, so that better results can be obtained by jointly designing
         % the energy budget scale factor and the bit loading.
-        gn = (abs(Hn).^2) ./ (w_norm_n * N0_over_2);
+        gn = (abs(Hn).^2) ./ (w_norm_n(subCh_tone_index_herm) * N0_over_2);
     case 3
         % The normalization adopted for the time-domain precoder is almost
         % equal to the one for the frequency-domain precoder. The only
         % difference is that the entries zeroed for complexity reduction
         % are accounted.
-        gn = (abs(Hn).^2) ./ (w_norm_n * N0_over_2);
+        gn = (abs(Hn).^2) ./ (w_norm_n(subCh_tone_index_herm) * N0_over_2);
     otherwise
         gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
 end
@@ -546,7 +546,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Per-tone Precoder
     if (equalizer == EQ_FREQ_PREC)
-        X = precodeFreqDomain( X, FreqPrecoder, modOrder, dmin_n );
+        X = precodeFreqDomain( X, FreqPrecoder, modOrder, dmin_n, ...
+            subCh_tone_index );
     end
 
     x = sqrt(Nfft) * ifft(X, Nfft);
@@ -677,11 +678,15 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             % Note: the section name may be misleading. The receiver below
             % equalizes ISI using time-domain DMT symbols. However, its
             % derivation is based in the frequency-domain.
-            [ rx_symbols, Z ] = dmtTdDfeReceiver(y_no_ext, modulator, ...
-                demodulator, modem_n, Scale_n, TimePrecoder, FEQn);
+            [ rx_data, Z ] = dmtTdDfeReceiver(y_no_ext, modulator, ...
+                demodulator, modem_n, Scale_n, TimePrecoder, FEQn, ...
+                subCh_tone_index_herm);
+
         case EQ_FREQ_PREC % DMT with additional modulo operation
-            [ rx_symbols, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
-                modem_n, Scale_n, FEQn, modOrder, dmin_n);
+            [ rx_data, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
+                modem_n, Scale_n, FEQn(1:N_subch), modOrder, dmin_n, ...
+                subCh_tone_index, subCh_tone_index_herm);
+
         otherwise
             % FFT
             Y = (1/sqrt(Nfft)) * fft(y_no_ext, Nfft);
@@ -730,8 +735,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % transmission. In case the MMSE-LE TEQ is adopted, it can also be
     % updated using the actual estimated input autocorrelation Rxx.
 
-    % If the error is too high, bit-loading shall be re-trained
-    if (mean(ser_n_bar) > 5 * Pe_bar_lc)
+    % If the error is too high, bit-loading shall be re-trained for the
+    % equalization methods that do not fully cancel the ICPD
+    if (mean(ser_n_bar) > 5 * Pe_bar_lc && equalizer ~= EQ_FREQ_PREC ...
+            && equalizer ~= EQ_TIME_PREC)
         fprintf('\n## Re-training the ICPD PSD and the bit-load vector...\n');
 
         % Input Autocorrelation based on actual transmit data
