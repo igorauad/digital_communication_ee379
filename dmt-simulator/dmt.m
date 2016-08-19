@@ -546,7 +546,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Per-tone Precoder
     if (equalizer == EQ_FREQ_PREC)
-        X = precodeFreqDomain( X, FreqPrecoder, modOrder, dmin_n, ...
+        X = precodeFreqDomain( X, FreqPrecoder, bn_bar_lc, dmin_n, ...
             subCh_tone_index );
     end
 
@@ -684,8 +684,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
         case EQ_FREQ_PREC % DMT with additional modulo operation
             [ rx_data, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
-                modem_n, Scale_n, FEQn(1:N_subch), modOrder, dmin_n, ...
-                subCh_tone_index, subCh_tone_index_herm);
+                modem_n, Scale_n, FEQn(1:N_subch), bn_bar_lc, dmin_n, ...
+                subCh_tone_index);
 
         otherwise
             % FFT

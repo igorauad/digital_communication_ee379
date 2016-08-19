@@ -1,4 +1,4 @@
-function [ X ] = precodeFreqDomain( X, Precoder, modOrder, dmin, usedTones )
+function [ X ] = precodeFreqDomain( X, Precoder, b_bar, dmin, usedTones )
 %   Precode frequency domain symbols
 % --------------------------------------------------
 % [ x ] = precodeTimeDomain( x_nce, params )
@@ -8,7 +8,7 @@ function [ X ] = precodeFreqDomain( X, Precoder, modOrder, dmin, usedTones )
 % Input:
 %   X         ->    Frequency-domain DMT symbols
 %   Precoder  ->    Struct with the time-domain precoding matrix
-%   modOrder  ->    Vector of modulation orders for each subchannel
+%   b_bar     ->    Vector of bits/dimension for each subchannel
 %   dmin      ->    Vector of minimum distances for each subchannel
 %   usedTones ->    Vector indicating the DFT tones that are used
 %
@@ -21,10 +21,10 @@ function [ X ] = precodeFreqDomain( X, Precoder, modOrder, dmin, usedTones )
 nSymbols   = size(X, 2);
 N          = size(X, 1);
 
-% Initialize full vector of modulation orders:
-M            = ones(N/2 +1, 1); % Note an unitary order corresponds to b=0
-% Set the actual order corresponding to the used tones:
-M(usedTones) = modOrder;
+% Initialize full vector of bits per dimension:
+b_bar_padded            = zeros(N/2 +1, 1);
+% Set the actual number of bits/dim corresponding to the used tones:
+b_bar_padded(usedTones) = b_bar;
 
 % Initialize full vector of minimum distances:
 D            = zeros(N/2 +1, 1);
@@ -33,7 +33,7 @@ D(usedTones) = dmin;
 %% Precode
 
 % First symbol (no feedback term)
-X(:,1) = Precoder.W * moduloOperator(X(1:N/2+1,1), M, ...
+X(:,1) = Precoder.W * moduloOperator(X(1:N/2+1,1), b_bar_padded, ...
     D, 'Hermitian');
 
 % Remaining symbols
@@ -43,7 +43,7 @@ for sym_index = 2:nSymbols
         Precoder.B * sqrt(N) * ifft(X(:,sym_index-1),N);
     % Precode:
     X(:,sym_index) = Precoder.W * moduloOperator(X_prev_prec(1:N/2+1), ...
-        M, D, 'Hermitian');
+        b_bar_padded, D, 'Hermitian');
 end
 
 end

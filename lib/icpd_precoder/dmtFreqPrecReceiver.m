@@ -1,5 +1,5 @@
 function [ rx_data, Z ] = dmtFreqPrecReceiver(y, demodulator, modChoice,...
-    scale, FEQ, modOrder, dmin, usedTones, usedTonesHerm)
+    scale, FEQ, b_bar, dmin, usedTones)
 % DMT Receiver for the Frequency-domain Precoded Transmissions
 % ------------------------------------------------------------------------
 %
@@ -13,10 +13,9 @@ function [ rx_data, Z ] = dmtFreqPrecReceiver(y, demodulator, modChoice,...
 % modChoice     - Vector with the modulator choices for each subchannel
 % scale         - Scaling factors for each constellation
 % FEQ           - FEQ Taps (Hermitian vector)
-% modOrder      - Vector of modulation orders for each subchannel
+% b_bar         - Vector of bits/dimension for each subchannel
 % dmin          - Vector of minimum distances for each subchannel
 % usedTones     - Vector indicating one side of the DFT tones that are used
-% usedTonesHerm - Hermitian vector indicating all used DFT tones
 %
 %   Outputs:
 % rx_data       - Decision output data
@@ -29,10 +28,10 @@ N          = size(y, 1);
 % Preallocate
 rx_data = zeros(N/2 + 1, nSymbols);
 
-% Initialize full vector of modulation orders:
-M            = ones(N/2 +1, 1); % Note an unitary order corresponds to b=0
-% Set the actual order corresponding to the used tones:
-M(usedTones) = modOrder;
+% Initialize full vector of bits per dimension:
+b_bar_padded            = zeros(N/2 +1, 1);
+% Set the actual number of bits/dim corresponding to the used tones:
+b_bar_padded(usedTones) = b_bar;
 
 % Initialize full vector of minimum distances:
 D            = zeros(N/2 +1, 1);
@@ -47,7 +46,7 @@ Y = (1/sqrt(N)) * fft(y, N);
 Z = diag(FEQ) * Y(usedTones, :);
 
 % Modulo operation
-Z = moduloOperator(Z, modOrder, dmin);
+Z = moduloOperator(Z, b_bar, dmin);
 
 % Constellation decoding (decision)
 for iModem = 1:length(demodulator)
