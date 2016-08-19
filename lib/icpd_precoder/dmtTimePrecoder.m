@@ -1,4 +1,4 @@
-function [ Precoder, Info ] = dmtTimePrecoder(p, n0, nu, tau, N, preCursor, windowing)
+function [ Precoder, Info ] = dmtTimePrecoder(p, n0, nu, tau, N, windowing)
 %   Compute Time Domain Precoder and Equalizer Matrices
 % ----------------------------------------------------------
 %   [ Params ] = timeDomainPrecoderEqualizer(Params, Channel)
@@ -11,7 +11,6 @@ function [ Precoder, Info ] = dmtTimePrecoder(p, n0, nu, tau, N, preCursor, wind
 % nu                Cyclic Prefix Length
 % tau               Cyclic Suffix length
 % N                 FFT size
-% preCursor         When pre-cursor ICPD should be accounted
 % windowing         When spectrum shaping windowing should be accounted
 %
 %   Output parameters

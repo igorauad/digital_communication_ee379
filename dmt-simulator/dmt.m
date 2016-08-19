@@ -87,10 +87,6 @@ EQ_TEQ       = 1;
 EQ_FREQ_PREC = 2;
 EQ_TIME_PREC = 3;
 
-% Time-domain Precoder
-tdPrecoderPostCursor = 0;
-tdPrecoderPostPreCursor = 1;
-
 % Normalized FFT Matrix
 Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 
@@ -248,8 +244,7 @@ fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
         w_norm_n =  FreqPrecoder.wk;
     case EQ_TIME_PREC
 fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
-        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, Nfft,...
-            tdPrecoderPostCursor, windowing);
+        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, Nfft, windowing);
         w_norm_n =  TimePrecoder.ici.wk;
 end
 
