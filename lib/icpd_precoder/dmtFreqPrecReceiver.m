@@ -47,10 +47,7 @@ Y = (1/sqrt(N)) * fft(y, N);
 Z = diag(FEQ) * Y(usedTones, :);
 
 % Modulo operation
-for iSym=1:nSymbols
-    Z(:,iSym) = moduloOperator(Z(1:N/2+1, iSym), ...
-        M, D, 'Hermitian');
-end
+Z = moduloOperator(Z, modOrder, dmin);
 
 % Constellation decoding (decision)
 for iModem = 1:length(demodulator)
