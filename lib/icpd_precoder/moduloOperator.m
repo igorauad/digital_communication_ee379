@@ -25,18 +25,33 @@ D        = D(:);
 nSymbols = size(X, 2);
 M_bar    = 2.^b_bar;    % Constellation order per dimension
 
+% Used tones:
+usedTones = M_bar~=0 & D~=0;
+
+% Ignore the constellation orders and minimum distances of the tones that
+% are not used
+M_bar = M_bar(usedTones);
+D     = D(usedTones);
+% Important: In the ensuing formulation, there is an inversion
+% inv(diag(M_bar.*D). If a vector with M_bar=0 or D=0 is adopted, then the
+% result will yield a matrix NaNs. By extracting only the used tones, this
+% problem is avoided.
+
+% Preallocate the modulo-operated symbols
+Gamma_M   = zeros(size(X));
+
 %% Main
 if (~bypass)
 
     % Apply modulo-M in the real part of the symbols
-    Gamma_M_real = real(X) - diag(M_bar .* D) * ...
+    Gamma_M_real = real(X(usedTones, :)) - diag(M_bar .* D) * ...
         floor(inv(diag(M_bar.*D)) * ...
-        (real(X) + repmat(M_bar.*D/2, [1 nSymbols]) ));
+        (real(X(usedTones, :)) + repmat(M_bar.*D/2, [1 nSymbols]) ));
 
     % Apply modulo-M in the imaginary part of the symbols
-    Gamma_M_imag = imag(X) - diag(M_bar .* D) * ...
+    Gamma_M_imag = imag(X(usedTones, :)) - diag(M_bar .* D) * ...
         floor(inv(diag(M_bar.*D)) * ...
-        (imag(X) + repmat(M_bar.*D/2, [1 nSymbols]) ));
+        (imag(X(usedTones, :)) + repmat(M_bar.*D/2, [1 nSymbols]) ));
 
     % For a single symbol (nSymbols = 1), the above is equivalent to:
     %     Gamma_M_real = real(X) - ...
@@ -45,11 +60,7 @@ if (~bypass)
     %         M_bar.*D.*floor((imag(X)+ M_bar.*D/2)./(M_bar.*D));
 
     % Form the complex modulo-operated symbols:
-    Gamma_M = Gamma_M_real + 1j*Gamma_M_imag;
-
-    % Important: The division by (M_bar.*D) can yield NaN for the
-    % tones in which M or D is 0. Correct this by:
-    Gamma_M(M_bar==0 | D==0) = 0;
+    Gamma_M(usedTones, :) = Gamma_M_real + 1j*Gamma_M_imag;
 
     % In case the Hermitian flag is assert, output the derived Hermitian
     % vector:
