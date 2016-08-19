@@ -1,13 +1,14 @@
-function [Precoder] = dmtFreqPrecoder(h, N, Lcp, Lcs, n0, WINDOWING)
+function [Precoder] = dmtFreqPrecoder(h, N, nu, tau, n0, windowing)
 %assembleCheongPrecoder Assembles the Cheong [1] Precoding Matrices for
 %Insufficient Cyclic Prefix Distortion mitigation
 %
 %   Input Parameters
 % h                 Channel Impulse Response (CIR)
 % N                 FFT size
-% Lcp               Cyclic Prefix Length
-% Lcs               Cyclic Suffix length
+% nu                Cyclic Prefix Length
+% tau               Cyclic Suffix length
 % n0                CIR delay (index of its peak)
+% windowing         Indicates whether windowing+overlap is used
 %
 %   Output parameters
 %
@@ -20,7 +21,7 @@ function [Precoder] = dmtFreqPrecoder(h, N, Lcp, Lcs, n0, WINDOWING)
 % [cyclic prefix," Communications, 1998. ICC 98. Conference Record. 1998
 % IEEE [International Conference on, Atlanta, GA, 1998, pp. 339-343 vol.1.
 
-    Lh = length(h);
+    % Ensure the CIR is a column vector
     h = h(:);
 
     fprintf('\n\nCheong Precoder\n')
@@ -28,19 +29,19 @@ function [Precoder] = dmtFreqPrecoder(h, N, Lcp, Lcs, n0, WINDOWING)
     Q = (1/sqrt(N))*fft(eye(N));
 
     [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(h,...
-            n0, Lcp, Lcs, N, WINDOWING);
+            n0, nu, tau, N, windowing);
 
     % Phase shift (in freq. domain) due to circular shift in time domain:
-    phaseShift = sparse(diag(exp(1j*2*pi*(n0/N)*(0:N-1))));
+    phaseShift = sparse(diag(exp(1j*2*pi*(tau/N)*(0:N-1))));
+    % Assume that the time-domain DMT vectors multiplying the ISI matrix
+    % will be circularly shifted by -tau in the time-domain.
 
     % Ideal Freq. Domain Channel Matrix (CIR FFT with a phase shift):
-    H = Q*Hcirc*Q'*phaseShift; % Diagonal Matrix with the Channel Gains
-    Hdiag = diag(H);
+    H = Q * Hcirc * Q'; % Diagonal Matrix with the Channel Gains
     % Feed-forward Precoder
 
     % Precoder
     W_common = (Hcirc+Hici)\Hcirc;
-    W_common = circshift(W_common,[n0 n0]);
     W = Q * W_common * Q';
 
     % Feedback equalizer

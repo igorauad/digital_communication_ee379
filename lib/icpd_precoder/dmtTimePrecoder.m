@@ -47,15 +47,15 @@ Q = (1/sqrt(N))*fft(eye(N));
 
 %% Precoder/Equalizer Design
 
-W_common = (Hcirc + Hici)\Hcirc;
-% Common operation to the following calculations
-
 % Time domain ICI precoder:
-Wt = circshift(W_common,[n0 n0]);
+Wt = (Hcirc + Hici)\Hcirc;
 
 % Time domain ISI generator:
 if (sum(Hisi(:)) ~= 0) % if Hisi is not empty (when Post-cursor exists)
-    Wisi = Hisi*circshift(W_common,[0 n0]);
+    Wisi = Hisi*circshift(Wt, [-tau 0]);
+    % A circular rotation in the rows of Wt by -tau corresponds to a
+    % rotation of the precoded transmit vector \tilde{x}^{i-1} by -tau.
+    % Further details can be found in the paper.
 else
     Wisi = zeros(N, N);
 end

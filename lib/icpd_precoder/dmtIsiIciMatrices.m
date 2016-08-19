@@ -13,8 +13,11 @@ function [ Hisi, Hici, Hcirc, HpreIsi, HpreIci ] = ...
 %       y_tilde_ici = HpreIci * x;
 %       y_tilde_isi = HpreIsi * circshift(x, nu);
 %
-%   IMPORTANT: note that the circular shifts applied to x for post-cursor
-%   and pre-cursor ISI are assumed to be different.
+%   IMPORTANT: note that the time-domain DMT symbols (vectors) must be
+%   circular shifted before multiplying the ISI matrices (both pre-cursor
+%   and post-cursor). For pre-cursor, they should be shifted by +nu
+%   (downwards for column-vectors), whereas for post-cursor the shift
+%   should be of -tau (upwards).
 %
 %   Input Parameters
 % p                 Channel Pulse Response
@@ -58,10 +61,17 @@ delta = L - (nu - tau) - n0;
 %% Circulant Matrix
 
 % CIR zero padded to a vector of length N
-h_padded = [p;  zeros(N - Lh, 1)];
+h_padded         = [p;  zeros(N - Lh, 1)];
 
-% Note h has to be a column vector
-Hcirc = toeplitz(h_padded, flipud(circshift(h_padded, -1)));
+% Padded CIR circularly-shifted by -n0
+h_padded_shifted = circshift(h_padded, -n0);
+
+if (computeHcirc)
+% Circulant matrix:
+Hcirc = toeplitz(h_padded_shifted, ...
+    flipud(circshift(h_padded_shifted,-1)));
+% Note "h_padded_shifted" has to be a column vector
+end
 
 %% Windowing Sequence
 
