@@ -10,20 +10,23 @@ function [S_icpd, S_post, S_pre] = icpdPsdMtx(Hisi, HpreIsi, Ex_arg, Ndft)
 % Ndft     -> DFT Size
 %
 %   Notes:
-% 1) The DFT Size N can be higher than the dimensions of Hisi and HpreIsi
+% 1) The ICI matrices could also be passed in place of the ISI matrices.
+%    Result is equivalent.
+%
+% 2) The DFT Size N can be higher than the dimensions of Hisi and HpreIsi
 % if a higher DFT resolution is sought. In this case, these matrices must
 % be zero-padded.
 %
-% 2) When the argument "Ex_arg" is a scalar, it is interpreted as the
+% 3) When the argument "Ex_arg" is a scalar, it is interpreted as the
 % average energy per dimension. In this case, it is assumed that the
 % transmit signal is uncorrelated, such that its autocorrelation matrix is
 % Ex_bar * eye(N). Otherwise (if "Ex_arg" is a matrix), it is interpreted
 % as the autocorrelation matrix.
 %
-% 3) Since the ISI PSD is identical to the ICI PSD, the ISI matrices (pre
+% 4) Since the ISI PSD is identical to the ICI PSD, the ISI matrices (pre
 % and post cursor) are sufficient for the computation.
 %
-% 4) PSD scaling factors given zero-padding by L
+% 5) PSD scaling factors given zero-padding by L
 %
 %   A factor of (L = Ndft/N) is used below to scale the PSDs. We can
 % understand it by analyzing three possible spectral densities: Watts per
