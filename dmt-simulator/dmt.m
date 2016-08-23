@@ -241,11 +241,9 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
     case EQ_FREQ_PREC
 fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
         FreqPrecoder = dmtFreqPrecoder(p, Nfft, nu, tau, n0, windowing);
-        w_norm_n =  FreqPrecoder.wk;
     case EQ_TIME_PREC
 fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
         TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, Nfft, windowing);
-        w_norm_n =  TimePrecoder.ici.wk;
 end
 
 %% Effective pulse response
@@ -315,28 +313,8 @@ switch (equalizer)
         %   Ultimately, the gain-to-noise ratio is not being affected by
         %   the TEQ in the expression. This can be the fallacious in the
         %   model.
-    case 2
-        % The energy increase in each subchannel is given by the Euclidean
-        % norm of the corresponding row. Thus, the total energy after
-        % precoding becomes, on average, sum(Ex_bar_n * w_norm_n), for n in
-        % 0 to N-1. Assuming an initial flat energy load among subchannels,
-        % i.e., that Ex_bar_n is the same for all n, then the total average
-        % tx energy is Ex = Ex_bar * sum(w_norm_n), so that the resulting
-        % energy per dimension becomes Ex_bar * sum(w_norm_n) / N. From
-        % that, we can conclude that the energy per dimension is increased
-        % through precoding by a factor of "sum(w_norm_n)/N" or,
-        % equivalently, by mean(w_norm_n). This increase must be
-        % compensated in the budget passed to the water-filling solver.
-        % Furthermore, note that water-fill does not lead to flat energy
-        % load, so that better results can be obtained by jointly designing
-        % the energy budget scale factor and the bit loading.
-        gn = (abs(Hn).^2) ./ (w_norm_n(subCh_tone_index_herm) * N0_over_2);
-    case 3
-        % The normalization adopted for the time-domain precoder is almost
-        % equal to the one for the frequency-domain precoder. The only
-        % difference is that the entries zeroed for complexity reduction
-        % are accounted.
-        gn = (abs(Hn).^2) ./ (w_norm_n(subCh_tone_index_herm) * N0_over_2);
+    case {2,3}
+        gn = (abs(Hn).^2) ./ N0_over_2;
     otherwise
         gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
 end
@@ -388,17 +366,76 @@ fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 % Residual unallocated energy
 fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En_discrete));
 
+% Energy per real dimension
+En_bar_lc = En_discrete ./ dim_per_subchannel;
+
+%% Loading adaptation to avoid power penalties in full ICPD mitigation
+% In case the full ICPD equalizers are used, either the frequency-domain or
+% the time-domain precoder, power increase can occur. This power penaly
+% shall be pre-compensated in the energy budget that is passed to the bit
+% loader. The main difficulty in this process, however, is that the power
+% increase itself depends on the energy load. Our approach is to first
+% compute an initial energy load (the one from previous section), assuming
+% initially no power increase due to precoding. Then, based on the computed
+% energy load, the total energy after precoding is computed and compared to
+% the original budget. The reciprocal of the factor by which the energy
+% increases due to precoding is used to reduce the budget. In the end, the
+% bit/energy load is re-computed.
+
+if (equalizer == EQ_TIME_PREC || equalizer == EQ_FREQ_PREC)
+
+fprintf('\n------ Energy-load adaptation for the ICPD Precoder -----\n\n');
+
+    % Full Hermitian En_bar vector for the Levin-Campello energy load
+    En_bar_lc_herm = zeros(Nfft, 1);
+    En_bar_lc_herm(subCh_tone_index_herm(1:N_subch)) = En_bar_lc;
+    En_bar_lc_herm(subCh_tone_index_herm(N_subch+1:end)) = ...
+        fliplr(En_bar_lc);
+
+    % Average transmit energy per symbol after precoding
+    if (equalizer == EQ_TIME_PREC)
+        Ex_precoded = real(trace(TimePrecoder.ici.W * ...
+            diag(En_bar_lc_herm) * TimePrecoder.ici.W'));
+    else
+        Ex_precoded = real(trace(FreqPrecoder.W * ...
+            diag(En_bar_lc_herm) * FreqPrecoder.W'));
+    end
+
+    % By how much the precoded energy exceeds the budget:
+    Ex_budget_excess = Ex_precoded / Ex_budget;
+
+    % Reduce the budget by the following amount
+    budget_red_factor = 1/Ex_budget_excess;
+
+    % Rate-adaptive Levin-Campello loading:
+    [En_discrete, bn_discrete] = DMTLCra(...
+        gn(1:N_subch),...
+        budget_red_factor * Ex_budget,...
+        N, gap_db, ...
+        max_load, ...
+        dim_per_subchannel);
+
+    % Residual unallocated energy
+    fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En_discrete));
+
+    % Energy per real dimension
+    En_bar_lc = En_discrete ./ dim_per_subchannel;
+
+    fprintf('Energy budget was reduced by %.2f %%\n', ...
+        100*(1 - budget_red_factor));
+end
+
+%% Bit loading computations
+
+% Bits per subchannel per dimension
+bn_bar_lc = bn_discrete ./ dim_per_subchannel;
+
 % Save a vector with the index of the subchannels that are loaded
 n_loaded = subCh_tone_index(bn_discrete ~= 0);
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
 % Dimensions in each loaded subchannel
 dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
-
-% Energy per real dimension
-En_bar_lc = En_discrete ./ dim_per_subchannel;
-% Bits per subchannel per dimension
-bn_bar_lc = bn_discrete ./ dim_per_subchannel;
 
 % Total bits per dimension:
 b_bar_discrete = 1/nDim*(sum(bn_discrete));
@@ -578,10 +615,9 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % other.
         fprintf('Tx Energy p/ Sym:\t%g\t', ...
             tx_total_energy / nSymbols);
-        % Nominal energy is the value designed considering the energy
-        % allocated in the bit-loading algorithm plus the excess energy in
-        % the prefix
-        fprintf('Design value:\t%g\t', sum(En_discrete)*(Nfft + nu)/Nfft);
+        % Design energy is the energy budget plus the excess energy in the
+        % prefix
+        fprintf('Design value:\t%g\t', Ex_budget*(Nfft + nu)/Nfft);
     end
 
     %% Channel

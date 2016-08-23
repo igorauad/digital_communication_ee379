@@ -63,9 +63,8 @@ clear W_common
 
 % Further reductions on Wt and Wisi dimensions
 Wt(abs(Wt) < TD_THRESHOLD) = 0; % Round
-% Use "full" Precoder matrix to compute the energy increase factors for
-% each subchannel:
-w_norm_n = sum(abs(Q * Wt * Q').^2,2).';
+% Compute "full" frequency-domain Precoder matrix:
+W = Q * Wt * Q';
 % Subtract the diagonal
 Wt = Wt - eye(N);
 
@@ -112,7 +111,7 @@ fprintf('MACs per sample:\t %d \n', ...
 Precoder.ici.Wt              = Wt;
 Precoder.ici.significantCols = sig_col_ici;
 Precoder.ici.significantRows = sig_row_ici;
-Precoder.ici.wk              = w_norm_n;
+Precoder.ici.W               = W;
 
 Precoder.isi.Wisi            = Wisi;
 Precoder.isi.significantCols = sig_col_isi;
