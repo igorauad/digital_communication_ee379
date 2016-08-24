@@ -99,13 +99,30 @@ end
 
 L = (Ndft/N); % PSD scaling factor
 
-% Preallocate
-S_post = real(2 * L * diag(Q * Hisi * Rxx * Hisi' * Q'));
+% By explicit writing the formal equation presented in the paper, the
+% post-cursor ICPD PSD would be written as:
+
+%   S_post = real(2 * L * diag(Q * Hisi * Rxx * Hisi' * Q'));
+
+% However, it is faster to implement it relying on the FFT algorithm:
+tmp = Hisi * Rxx * Hisi';
+tmp = fft(tmp, Ndft);
+tmp = fft(conj(tmp), Ndft, 2); % Same as " tmp = fft(tmp', Ndft)' "
+S_post = real(2 * L * diag((1/Ndft) * tmp));
+
 
 %% Pre-cursor PSD
 
-% Preallocate
-S_pre  = real(2 * L * diag(Q * HpreIsi * Rxx * HpreIsi' * Q'));
+% Again, the formal equation presented in the paper is:
+
+% S_pre  = real(2 * L * diag(Q * HpreIsi * Rxx * HpreIsi' * Q'));
+
+% But it is faster to implement it using the FFT algorithm:
+tmp = HpreIsi * Rxx * HpreIsi';
+tmp = fft(tmp, Ndft);
+tmp = fft(conj(tmp), Ndft, 2); % Same as " tmp = fft(tmp', Ndft)' "
+S_pre = real(2 * L * diag((1/Ndft) * tmp));
+
 
 %% Total ICPD PSD:
 
