@@ -36,9 +36,6 @@ Info.sizeWisi            = [];
 Info.complexity          = [];
 Info.complexityNormFFT   = [];
 
-% Normalized FFT Matrix
-Q = (1/sqrt(N))*fft(eye(N));
-
 %% Time-domain ISI, ICI and Circulant Matrices
 
 [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(p,...
@@ -63,8 +60,11 @@ clear W_common
 
 % Further reductions on Wt and Wisi dimensions
 Wt(abs(Wt) < TD_THRESHOLD) = 0; % Round
-% Compute "full" frequency-domain Precoder matrix:
-W = Q * Wt * Q';
+% Compute "full" frequency-domain Precoder matrix (W = Q * Wt * Q') through
+% an optimized way (using the FFT algorithm):
+tmp  = fft(Wt, N);
+W = (1/N) * fft(conj(tmp), N, 2);
+
 % Subtract the diagonal
 Wt = Wt - eye(N);
 
