@@ -562,6 +562,9 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% Random DMT Symbol generation
 
+    % Erase any previous entries within the symbols
+    X  = zeros(Nfft, nSymbols);
+
     % Iterate over the distinct modulators
     for iModem = 1:length(modulator)
         M = modulator{iModem}.M;       % Modulation order
