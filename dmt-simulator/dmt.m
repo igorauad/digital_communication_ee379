@@ -851,9 +851,18 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Bit rate
         Rb = sum(bn_discrete) / Tsym;
 
+        % Energy per real dimension
+        En_bar_lc = En_discrete ./ dim_per_subchannel;
+        % SNR on each tone, per real dimension:
+        SNR_n_lc    = En_bar_lc .* gn(1:N_subch);
+        % Update the probability of error
+        Pe_bar_n_lc = dmtPe(bn_discrete, SNR_n_lc, dim_per_subchannel);
+        Pe_bar_lc = mean(Pe_bar_n_lc, 'omitnan');
+
         % Print the results of the new bit-load
         fprintf('b_bar:     \t %g bits/dimension', b_bar_discrete)
         fprintf('\nBit rate:\t %g mbps\n', Rb/1e6);
+        fprintf('Pe_bar (LC)  :\t %g\n', Pe_bar_lc);
         fprintf('## Restarting transmission...\n\n');
 
         % Update the vector of modulation orders
