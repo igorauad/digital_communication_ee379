@@ -556,6 +556,7 @@ BitError = comm.ErrorRate;
 %% Iterative Transmissions
 
 iTransmission = 0;
+iReTraining   = 0;
 
 while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     iTransmission = iTransmission + 1;
@@ -770,9 +771,16 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % updated using the actual estimated input autocorrelation Rxx.
 
     % If the error is too high, bit-loading shall be re-trained for the
-    % equalization methods that do not fully cancel the ICPD
-    if (mean(ser_n_bar) > 5 * Pe_bar_lc && equalizer ~= EQ_FREQ_PREC ...
-            && equalizer ~= EQ_TIME_PREC)
+    % equalization choices that do not fully cancel the ICPD (including the
+    % case of no equalization).
+    if ((mean(ser_n_bar) > 5 * Pe_bar_lc) && (equalizer == EQ_TEQ || ...
+          equalizer == EQ_NONE) && (iTransmission * nSymbols) > 1e4)
+        % Number of transmitted symbols is checked to avoid triggering
+        % re-training when the SER has been measured for a short period
+
+        % Keep track of how many times re-training was activated
+        iReTraining = iReTraining + 1;
+
         fprintf('\n## Re-training the ICPD PSD and the bit-load vector...\n');
 
         % Input Autocorrelation based on actual transmit data
