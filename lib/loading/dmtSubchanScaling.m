@@ -70,7 +70,6 @@ for k = 1:length(En)
         elseif (mod(b_k, 2) ~= 0 && b_k == 1)
             % Odd bit load == 1: "rotated" PAM's
             dmin_n(k) = 2*Scale_n(k);
-            %             dmin_n(k) = 2*sqrt(2)*Scale_n(k);
         else
             % SQ-QAM (even bit load)
             dmin_n(k) = 2*Scale_n(k);
