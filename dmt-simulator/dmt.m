@@ -275,10 +275,16 @@ FEQn    = (1 ./ (Hn .* phaseShift));
 % the bit loading.
 %
 % Note: for the frequency and time-domain ICPD precoders (which should
-% fully cancel the ICPD), the ICPD is considered null.
+% fully cancel the ICPD), the post-cursor ICPD is assumed to be null.
+% In this case, only pre-cursor ICPD is taken into account.
 
 if (equalizer == EQ_FREQ_PREC || equalizer == EQ_TIME_PREC)
-    S_icpd = zeros(Nfft, 1);
+    % In this case, assume post-cursor ICPD is fully cancelled and
+    % consider only the pre-cursor ICPD
+    [~, ~, ~, HpreIsi, ~] = ...
+                    dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
+    % Pre-cursor ICPD PSD
+    S_icpd = icpdPsdMtx(zeros(Nfft), HpreIsi, Ex_bar * eye(Nfft), Nfft);
 else
     S_icpd = icpdPsd(p_eff, Nfft, Nfft, nu, tau, n0, Ex_bar, windowing);
 end
@@ -313,8 +319,6 @@ switch (equalizer)
         %   Ultimately, the gain-to-noise ratio is not being affected by
         %   the TEQ in the expression. This can be the fallacious in the
         %   model.
-    case {2,3}
-        gn = (abs(Hn).^2) ./ N0_over_2;
     otherwise
         gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
 end
@@ -764,17 +768,16 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     %% Re-training of the bit-loading (and possibly the equalizer)
     % The initial bit-loading can often be innacurate, mostly due to the
     % ICPD that is initially computed assuming the input is perfectly
-    % uncorrelated. During show-time, we can compute the actual correlation
-    % of the transmit signal and use it to compute a more accurate ICPD
-    % PSD. Using this PSD, in turn, we update the bit-load and restart the
-    % transmission. In case the MMSE-LE TEQ is adopted, it can also be
-    % updated using the actual estimated input autocorrelation Rxx.
+    % uncorrelated (equivalently, the energy load is flat). During
+    % show-time, we can compute the actual correlation of the transmit
+    % signal and use it to compute a more accurate ICPD PSD. Using this
+    % PSD, in turn, we update the bit-load and restart the transmission. In
+    % case the MMSE-LE TEQ is adopted, it can also be updated using the
+    % actual estimated input autocorrelation Rxx.
 
-    % If the error is too high, bit-loading shall be re-trained for the
-    % equalization choices that do not fully cancel the ICPD (including the
-    % case of no equalization).
-    if ((mean(ser_n_bar) > 5 * Pe_bar_lc) && (equalizer == EQ_TEQ || ...
-          equalizer == EQ_NONE) && (iTransmission * nSymbols) > 1e4)
+    % If the error is too high, bit-loading shall be re-trained
+    if ((mean(ser_n_bar) > 5 * Pe_bar_lc) && ...
+          (iTransmission * nSymbols) > 1e4)
         % Number of transmitted symbols is checked to avoid triggering
         % re-training when the SER has been measured for a short period
 
@@ -786,7 +789,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Input Autocorrelation based on actual transmit data
         [r, l] = xcorr(x(:), Nfft-1, 'unbiased');
 
-        % For an MMSE_TEQ
+        % For an MMSE_TEQ, jointly design the TEQ
         if (equalizer == EQ_TEQ && teqType == TEQ_MMSE)
             % Autocorrelation matrix with the appropriate dimensions
             Rxx = toeplitz(r(Nfft:Nfft + floor(nTaps/L)*L + (Lh-1) - 1));
@@ -812,21 +815,36 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             FEQn    = (1 ./ (Hn .* phaseShift));
         end
 
-        % Compute the ISI matrices
-        [Hisi, ~, ~, HpreIsi, ~] = ...
-            dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
+
         % Nfft x Nfft Autocorrelation Matrix
         Rxx = toeplitz(r(Nfft:end));
+
         % Update the ICPD based on the ISI Matrices and the autocorrelation
         % matrix
-        S_icpd = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft);
+        switch (equalizer)
+            case {EQ_TEQ, EQ_NONE}
+                % Compute the ISI matrices
+                [Hisi, ~, ~, HpreIsi, ~] = ...
+                    dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
+
+                % Total ICPD PSD
+                S_icpd = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft);
+
+            case {EQ_FREQ_PREC, EQ_TIME_PREC}
+                % Compute the ISI matrices
+                [~, ~, ~, HpreIsi, ~] = ...
+                    dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
+
+                % PSD given by pre-cursor ICPD
+                S_icpd = icpdPsdMtx(zeros(Nfft), HpreIsi, Rxx, Nfft);
+        end
 
         % Update the gain-to-noise ratio:
         switch (equalizer)
             case EQ_TEQ
                 gn = (abs(H).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
                 gn = gn(subCh_tone_index_herm);
-            case EQ_NONE
+            otherwise
                 gn = (abs(Hn).^2) ./ ...
                     (N0_over_2 + S_icpd(subCh_tone_index_herm).');
         end
