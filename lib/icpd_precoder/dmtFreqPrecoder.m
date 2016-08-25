@@ -31,28 +31,37 @@ function [Precoder] = dmtFreqPrecoder(h, N, nu, tau, n0, windowing)
     [ Hisi, Hici, Hcirc ] = dmtIsiIciMatrices(h,...
             n0, nu, tau, N, windowing);
 
-    % Phase shift (in freq. domain) due to circular shift in time domain:
-    phaseShift = sparse(diag(exp(1j*2*pi*(tau/N)*(0:N-1))));
     % Assume that the time-domain DMT vectors multiplying the ISI matrix
     % will be circularly shifted by -tau in the time-domain.
 
-    % Ideal Freq. Domain Channel Matrix (CIR FFT with a phase shift):
-    H = Q * Hcirc * Q'; % Diagonal Matrix with the Channel Gains
-    % Feed-forward Precoder
+    % Compute Ideal Freq. Domain Channel Matrix (CIR FFT):
+    %
+    % The diagonal Matrix could be computed by (Q * Hcirc * Q'), but
+    % instead it is optimized to:
+    tmp  = fft(Hcirc, N);
+    H = (1/N) * fft(conj(tmp), N, 2);
+    % Note: CIR is assumed to already contain a phase shift
 
-    % Precoder
+    % Feed-forward Precoder (Q * W_common * Q')
     W_common = (Hcirc+Hici)\Hcirc;
-    W = Q * W_common * Q';
+
+    tmp  = fft(W_common, N);
+    W = (1/N) * fft(tmp', N)';
 
     % Feedback equalizer
-    B = - H\(Q*Hisi*Q'*phaseShift*Q);
 
-    clear Hcirc Hici Hisi Ht Phase_shift
+    % Explicit equation:
+    % Q = (1/sqrt(N)) * fft(eye(N));
+    % B = - (Hcirc * Q')\circshift(Hisi, [0 tau]);
+    % which differs from Cheong's formulation in terms of the circular
+    % shift due to tau
 
+    % Equivalent implementation using the FFT algorithm:
+    tmp  = (1/sqrt(N)) * fft(Hcirc', N)';   % (Hcirc * Q')
+    B    = - tmp \ circshift(Hisi, [0 tau]);
+
+    % Save for external usage
     Precoder.W = W;
     Precoder.B = B;
-    % Row norms:
-    Precoder.wk = sum(abs(W).^2,2).';
-
 end
 
