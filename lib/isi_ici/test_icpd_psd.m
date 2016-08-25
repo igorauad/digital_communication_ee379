@@ -192,9 +192,10 @@ Ex_bar
 % uncorrelatedness and the PSD computed with the correlation matrix Rxx
 % that is computed based on the transmit data.
 
-% Autocorrelation
+% Measured Autocorrelation
 [r, l] = xcorr(x(:), Nfft_psd-1, 'unbiased');
 
+% Measured Autocorrelation matrix
 Rxx = toeplitz(r(Nfft_psd:end));
 [ S_icpd2, S_post2, S_pre2 ] = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft_psd);
 
