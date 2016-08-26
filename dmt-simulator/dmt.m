@@ -90,42 +90,13 @@ EQ_TIME_PREC = 3;
 % Normalized FFT Matrix
 Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 
-%% Store vectors to look-up the number of dimensions in a subchannel
-% subchannel_index_herm -> Contains the indexes that can be used as
-%                          subchannels from the full Hermitian DFT.
-%                          Bit loading will determine whether used or not.
-% subchannel_index      -> Contains the indexes that can be used as
-%                          subchannels from the positive half of the DFT.
-%                          Again, bitloading determines wether used.
+%% Look-up tables for the indexes and number of dimensions of subchannels
 
-% Number of real dimensions in each tone of the DFT:
-dim_per_dft_tone = [1 2*ones(1, Nfft/2-1) 1 2*ones(1, Nfft/2-1)];
+[subCh_tone_index, subCh_tone_index_herm] = ...
+    dmtSubchIndexLookup(N, Nfft, L, noDcNyquist);
 
-% Vector of used subchannels among the DFT indices
-% Assume DC is at tone 1 and Nyquist at Nfft/2 + 1. To compute the
-% Hermitian symmetric of the k-th tone, we compute "Nfft + 2 - k".
-if (L == 1)
-    if (noDcNyquist)
-        subCh_tone_index_herm = [2:(N/2), (Nfft +2 - N/2):Nfft].';
-        subCh_tone_index      = 2:(N/2);
-    else
-        subCh_tone_index_herm = [1:(N/2 +1), (Nfft +2 - N/2):Nfft].';
-        subCh_tone_index      = 1:(N/2 +1);
-    end
-else
-    % When oversampling is used, it is easier to force the disabling of DC
-    % and Nyquist tones. In this case, the bin that for L=1 (no
-    % oversampling) represents Nyquist is loaded as a complex subchannel.
-    warning('DC and Nyquist are tones are not loaded due to oversampling');
-    noDcNyquist = 1;
-    subCh_tone_index_herm = [2:(N/2 + 1), (Nfft +2 - N/2 - 1):Nfft].';
-    % N/2 complex subcarriers at the positive half and the corresponding
-    % N/2 complex conjugate subcarriers at the negative half.
-    subCh_tone_index      = 2:(N/2 + 1);
-end
-
-% Then store the number of dimensions corresponding to each used subchannel
-dim_per_subchannel   = dim_per_dft_tone(subCh_tone_index);
+[dim_per_subchannel, dim_per_dft_tone] = ...
+    dmtSubchDimLookup(Nfft, subCh_tone_index);
 
 % Number of available subchannels
 N_subch  = length(subCh_tone_index);
