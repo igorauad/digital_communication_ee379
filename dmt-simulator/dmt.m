@@ -83,6 +83,7 @@ dmtObj.nSymbols          = nSymbols;
 dmtObj.Nfft              = Nfft;
 dmtObj.nu                = nu;
 dmtObj.N0_over_2         = N0_over_2;
+dmtObj.Ex_bar            = Ex_bar;
 
 %% Constants
 POST_PRE_ICPD_FLAG = 0;
@@ -240,6 +241,18 @@ end
 
 % Copy cursor to DMT Object
 dmtObj.n0 = n0;
+
+% Equalization/Precoding
+dmtObj.equalizer         = equalizer;
+switch equalizer
+    case EQ_TEQ
+        dmtObj.w = w;
+    case EQ_FREQ_PREC
+        dmtObj.Precoder = FreqPrecoder;
+    case EQ_TIME_PREC
+        dmtObj.Precoder = TimePrecoder;
+end
+
 %% Effective pulse response
 
 switch (equalizer)
@@ -250,73 +263,13 @@ switch (equalizer)
         p_eff = p;
 end
 
-%% Channel Frequency Response
-
-% Frequency domain response (use the effective pulse response in the FEQ)
-H = fft(p_eff, Nfft);
-
-% Store only the response at the used indices of the FFT
-Hn = H(subCh_tone_index_herm);
-
-% Corresponding phase shift due to cursor
-phaseShift = exp(1j*2*pi*(n0/Nfft)*(subCh_tone_index_herm.' - 1));
-
 %% Frequency Equalizer
 
 FEQn = dmtFEQ(p_eff, dmtObj);
 
-%% ICPD PSD
-% Compute the ICPD PSD, which is considered in the ensuing computation of
-% the bit loading.
-%
-% Note: for the frequency and time-domain ICPD precoders (which should
-% fully cancel the ICPD), the post-cursor ICPD is assumed to be null.
-% In this case, only pre-cursor ICPD is taken into account.
-
-if (equalizer == EQ_FREQ_PREC || equalizer == EQ_TIME_PREC)
-    % In this case, assume post-cursor ICPD is fully cancelled and
-    % consider only the pre-cursor ICPD
-    [~, ~, ~, HpreIsi, ~] = ...
-                    dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
-    % Pre-cursor ICPD PSD
-    S_icpd = icpdPsdMtx(zeros(Nfft), HpreIsi, Ex_bar * eye(Nfft), Nfft);
-else
-    S_icpd = icpdPsd(p_eff, Nfft, Nfft, nu, tau, n0, Ex_bar, windowing);
-end
-
 %% Gain-to-noise Ratio
 
-switch (equalizer)
-    case EQ_TEQ
-        % Notes:
-        %   # 1) The water-filling solution assumes no ISI/ICI. Even though
-        %   the TEQ constrains the pulse response energy to a portion that
-        %   can be covered by the guard band (commonly referred to the
-        %   "window" of the SIR), the out-of-window response of the
-        %   shortened response may still be significant and introduce
-        %   non-negligible ISI/ICI.
-        %   # 2) Note the feed-foward TEQ at the receiver shapes the
-        %   spectrum of the noise, so the noise PSD becomes |H_w|^2 * N0/2,
-        %   where H_w is given below:
-        H_w = fft(w, Nfft);
-        %   # 3) Meanwhile, the transmit signal is subject to the
-        %   compounded response of the channel + equalizer, namely the
-        %   effective response p_eff, whose DFT is "H".
-        %   # 4) Then, assuming that the ICPD is uncorrelated to the noise,
-        %   the gain to noise ratio at the receiver becomes:
-        gn = (abs(H).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
-        %   Store only the used tones
-        gn = gn(subCh_tone_index_herm);
-        %   Note that if ICPD was not accounted, since H_eff = Hn .* H_w,
-        %   the above gain-to-noise ratio would tend to be equivalent to
-        %   (for all non-zero H_W):
-        %       gn = (abs(Hn).^2) / N0_over_2;
-        %   Ultimately, the gain-to-noise ratio is not being affected by
-        %   the TEQ in the expression. This can be the fallacious in the
-        %   model.
-    otherwise
-        gn = (abs(Hn).^2) ./ (N0_over_2 + S_icpd(subCh_tone_index_herm).');
-end
+[ gn ] = dmtGainToNoise(p_eff, dmtObj);
 
 %% Water filling
 
@@ -549,21 +502,6 @@ dmtObj.FEQ_n             = FEQn;            % FEQ
 % Look-up Tables
 dmtObj.iTones            = subCh_tone_index;
 dmtObj.iTonesTwoSided    = subCh_tone_index_herm;
-
-% Windowing
-dmtObj.windowing         = windowing;
-dmtObj.window            = dmtWindow;
-
-% Equalization/Precoding
-dmtObj.equalizer         = equalizer;
-switch equalizer
-    case EQ_TEQ
-        dmtObj.w = w;
-    case EQ_FREQ_PREC
-        dmtObj.Precoder = FreqPrecoder;
-    case EQ_TIME_PREC
-        dmtObj.Precoder = TimePrecoder;
-end
 
 %% Iterative Transmissions
 
