@@ -73,6 +73,17 @@ Ex        = Px * Tsym;      % Average DMT symbol energy
 Ex_budget = Ex*(Nfft/(Nfft + nu)); % Energy budget passed to the WaterFill
 Ex_bar    = Ex / nDim;      % Energy per real dimension
 
+%% DMT Struct
+% Create an object with all the parameters
+
+dmtObj = [];
+
+% Fixed Parameters
+dmtObj.nSymbols          = nSymbols;
+dmtObj.Nfft              = Nfft;
+dmtObj.nu                = nu;
+dmtObj.N0_over_2         = N0_over_2;
+
 %% Constants
 POST_PRE_ICPD_FLAG = 0;
 
@@ -99,6 +110,10 @@ Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 
 % Number of available subchannels
 N_subch  = length(subCh_tone_index);
+
+% Copy to DMT Object
+dmtObj.iTonesTwoSided = subCh_tone_index_herm;
+dmtObj.N_subch        = N_subch;
 
 %% Pulse Response
 
@@ -155,6 +170,13 @@ if (windowing)
 else
     % When windowing is not used, the suffix must be 0
     tau = 0;
+end
+
+% Windowing
+dmtObj.windowing = windowing;
+dmtObj.tau       = tau;
+if (windowing)
+    dmtObj.window = dmtWindow;
 end
 
 %% Cursor
@@ -216,6 +238,8 @@ fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
         TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, Nfft, windowing);
 end
 
+% Copy cursor to DMT Object
+dmtObj.n0 = n0;
 %% Effective pulse response
 
 switch (equalizer)
@@ -238,7 +262,8 @@ Hn = H(subCh_tone_index_herm);
 phaseShift = exp(1j*2*pi*(n0/Nfft)*(subCh_tone_index_herm.' - 1));
 
 %% Frequency Equalizer
-FEQn    = (1 ./ (Hn .* phaseShift));
+
+FEQn = dmtFEQ(p_eff, dmtObj);
 
 %% ICPD PSD
 % Compute the ICPD PSD, which is considered in the ensuing computation of
@@ -508,16 +533,7 @@ BitError = comm.ErrorRate;
 %% DMT Struct
 % Create an object with all the parameters
 
-dmtObj = [];
-
 % Fixed Parameters
-dmtObj.nSymbols          = nSymbols;
-dmtObj.Nfft              = Nfft;
-dmtObj.N_subch           = N_subch;
-dmtObj.nu                = nu;
-dmtObj.tau               = tau;
-dmtObj.n0                = n0;
-dmtObj.N0_over_2         = N0_over_2;
 
 % Mod/Demod Objects
 dmtObj.modulator         = modulator;
