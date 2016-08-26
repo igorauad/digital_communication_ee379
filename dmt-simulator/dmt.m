@@ -81,9 +81,13 @@ dmtObj = [];
 % Fixed Parameters
 dmtObj.nSymbols          = nSymbols;
 dmtObj.Nfft              = Nfft;
+dmtObj.N                 = N;
 dmtObj.nu                = nu;
+dmtObj.nDim              = nDim;
 dmtObj.N0_over_2         = N0_over_2;
 dmtObj.Ex_bar            = Ex_bar;
+dmtObj.Ex_budget         = Ex_budget;
+dmtObj.Tsym              = Tsym;
 
 %% Constants
 POST_PRE_ICPD_FLAG = 0;
@@ -113,9 +117,10 @@ Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 N_subch  = length(subCh_tone_index);
 
 % Copy to DMT Object
-dmtObj.iTonesTwoSided = subCh_tone_index_herm;
-dmtObj.iTones         = subCh_tone_index;
-dmtObj.N_subch        = N_subch;
+dmtObj.iTonesTwoSided     = subCh_tone_index_herm;
+dmtObj.iTones             = subCh_tone_index;
+dmtObj.dim_per_subchannel = dim_per_subchannel;
+dmtObj.N_subch            = N_subch;
 
 %% Pulse Response
 
@@ -304,111 +309,19 @@ if (equalizer == EQ_TEQ)
     fprintf('Note: shortened response was used for water-filling.\n');
 end
 
-%% Discrete-loading: Levin Campello Rate Adaptive
+%% Loading
 
-fprintf('\n------------------ Discrete Loading -------------------- \n\n');
+[bn, En, SNR_n, n_loaded] = dmtLoading(dmtObj, gn, gap_db, max_load);
 
-% Rate-adaptive Levin-Campello loading:
-[En, bn] = DMTLCra(...
-    gn(1:N_subch),...
-    Ex_budget,...
-    N, gap_db, ...
-    max_load, ...
-    dim_per_subchannel);
-
-% Residual unallocated energy
-fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En));
-
-% Energy per real dimension
-En_bar = En ./ dim_per_subchannel;
-
-%% Loading adaptation to avoid power penalties in full ICPD mitigation
-% In case the full ICPD equalizers are used, either the frequency-domain or
-% the time-domain precoder, power increase can occur. This power penaly
-% shall be pre-compensated in the energy budget that is passed to the bit
-% loader. The main difficulty in this process, however, is that the power
-% increase itself depends on the energy load. Our approach is to first
-% compute an initial energy load (the one from previous section), assuming
-% initially no power increase due to precoding. Then, based on the computed
-% energy load, the total energy after precoding is computed and compared to
-% the original budget. The reciprocal of the factor by which the energy
-% increases due to precoding is used to reduce the budget. In the end, the
-% bit/energy load is re-computed.
-
-if (equalizer == EQ_TIME_PREC || equalizer == EQ_FREQ_PREC)
-
-fprintf('\n------ Energy-load adaptation for the ICPD Precoder -----\n\n');
-
-    % Full Hermitian En_bar vector for the Levin-Campello energy load
-    En_bar_herm = zeros(Nfft, 1);
-    En_bar_herm(subCh_tone_index_herm(1:N_subch)) = En_bar;
-    En_bar_herm(subCh_tone_index_herm(N_subch+1:end)) = ...
-        fliplr(En_bar);
-
-    % Average transmit energy per symbol after precoding
-    if (equalizer == EQ_TIME_PREC)
-        Ex_precoded = real(trace(TimePrecoder.ici.W * ...
-            diag(En_bar_herm) * TimePrecoder.ici.W'));
-    else
-        Ex_precoded = real(trace(FreqPrecoder.W * ...
-            diag(En_bar_herm) * FreqPrecoder.W'));
-    end
-
-    % By how much the precoded energy exceeds the budget:
-    Ex_budget_excess = Ex_precoded / Ex_budget;
-
-    % Reduce the budget by the following amount
-    budget_red_factor = 1/Ex_budget_excess;
-
-    % Rate-adaptive Levin-Campello loading:
-    [En, bn] = DMTLCra(...
-        gn(1:N_subch),...
-        budget_red_factor * Ex_budget,...
-        N, gap_db, ...
-        max_load, ...
-        dim_per_subchannel);
-
-    % Residual unallocated energy
-    fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En));
-
-    % Energy per real dimension
-    En_bar = En ./ dim_per_subchannel;
-
-    fprintf('Energy budget was reduced by %.2f %%\n', ...
-        100*(1 - budget_red_factor));
-end
-
-%% Bit loading computations
-
-% Bits per subchannel per dimension
-bn_bar = bn ./ dim_per_subchannel;
-
-% Save a vector with the index of the subchannels that are loaded
-n_loaded = subCh_tone_index(bn ~= 0);
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
 % Dimensions in each loaded subchannel
 dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
 
-% Total bits per dimension:
-b_bar_discrete = 1/nDim*(sum(bn));
+% Bits per subchannel per dimension
+bn_bar = bn ./ dim_per_subchannel;
 
-% SNRdmt from the number of bits per dimension
-SNRdmt    = gap*(2^(2*b_bar_discrete)-1);
-SNRdmt_db = 10*log10(SNRdmt);
-
-% SNR on each tone, per real dimension:
-SNR_n     = En_bar .* gn(1:N_subch);
-
-% Bit rate
-Rb = sum(bn) / Tsym;
-
-fprintf('b_bar:                    \t %g bits/dimension', b_bar_discrete)
-fprintf('\nBit rate:               \t %g mbps\n', Rb/1e6);
-fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
-    SNRdmt_db);
-
-% Compare water-filling and discrete-loading
+%% Compare water-filling and discrete-loading
 if (debug && debug_loading)
     figure
     plot(subCh_tone_index, bn_wf, ...
@@ -590,7 +503,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Keep track of how many times re-training was activated
         iReTraining = iReTraining + 1;
 
-        fprintf('\n## Re-training the ICPD PSD and the bit-load vector...\n');
+        fprintf('\n## Re-training the ICPD PSD and the bit-loading...\n');
 
         % For an MMSE_TEQ, jointly design the TEQ
         if (equalizer == EQ_TEQ && teqType == TEQ_MMSE)
@@ -622,39 +535,23 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Update the gain-to-noise ratio:
         gn = dmtGainToNoise(p_eff, dmtObj, Rxx);
 
-        % Rate-adaptive Levin-Campello loading:
-        [En, bn] = DMTLCra(...
-            gn(1:N_subch),...
-            Ex_budget,...
-            N, gap_db, ...
-            max_load, ...
-            dim_per_subchannel);
+        % Re-compute the bit loading
+        [bn, En, SNR_n, n_loaded] = dmtLoading(dmtObj, gn, gap_db, ...
+            max_load);
 
-        % Bits per subchannel per dimension
-        bn_bar = bn ./ dim_per_subchannel;
-        % Save a vector with the index of the subchannels that are loaded
-        n_loaded = subCh_tone_index(bn ~= 0);
         % Number of subchannels that are loaded
         N_loaded = length(n_loaded);
         % Dimensions in each loaded subchannel
         dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
 
-        % Total bits per dimension:
-        b_bar_discrete = 1/nDim*(sum(bn));
-        % Bit rate
-        Rb = sum(bn) / Tsym;
+        % Bits per subchannel per dimension
+        bn_bar = bn ./ dim_per_subchannel;
 
-        % Energy per real dimension
-        En_bar = En ./ dim_per_subchannel;
-        % SNR on each tone, per real dimension:
-        SNR_n  = En_bar .* gn(1:N_subch);
         % Update the probability of error
         Pe_bar_n = dmtPe(bn, SNR_n, dim_per_subchannel);
         Pe_bar = mean(Pe_bar_n, 'omitnan');
 
         % Print the results of the new bit-load
-        fprintf('b_bar:     \t %g bits/dimension', b_bar_discrete)
-        fprintf('\nBit rate:\t %g mbps\n', Rb/1e6);
         fprintf('Pe_bar (LC)  :\t %g\n', Pe_bar);
         fprintf('## Restarting transmission...\n\n');
 
