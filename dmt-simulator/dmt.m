@@ -299,28 +299,28 @@ end
 fprintf('\n--------------------- Water Filling -------------------- \n\n');
 
 % Water-filling:
-[bn_bar, En_bar] = waterFilling(gn, Ex_budget, N, gap);
+[bn_bar_wf, En_bar_wf] = waterFilling(gn, Ex_budget, N, gap);
 
 % Residual unallocated energy
-fprintf('Unallocated energy:      \t  %g\n', Ex_budget - sum(En_bar));
+fprintf('Unallocated energy:      \t  %g\n', Ex_budget - sum(En_bar_wf));
 
 % Bits per subchannel
-bn = bn_bar(1:N_subch) .* dim_per_subchannel;
+bn_wf = bn_bar_wf(1:N_subch) .* dim_per_subchannel;
 % Number of bits per dimension
-b_bar = (1/nDim)*(sum(bn_bar));
-fprintf('b_bar:                  \t %g bits/dimension\n', b_bar)
+b_bar_wf = (1/nDim)*(sum(bn_bar_wf));
+fprintf('b_bar:                  \t %g bits/dimension\n', b_bar_wf)
 % For gap=0 and N->+infty, this should be the channel capacity per real
 % dimension.
 
 % Corresponding multi-channel SNR:
-SNRdmt = 10*log10(gap*(2^(2*b_bar)-1));
+SNRdmt_wf = 10*log10(gap*(2^(2*b_bar_wf)-1));
 % SNR at each tone, per dimension:
-SNR_n = En_bar .* gn;
+SNR_n_wf = En_bar_wf .* gn;
 % Normalized SNR on each tone, per dimension (should approach the target
 % gap):
-SNR_n_norm = SNR_n ./ (2.^(2*bn_bar) - 1);
+SNR_n_norm_wf = SNR_n_wf ./ (2.^(2*bn_bar_wf) - 1);
 
-fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n', SNRdmt)
+fprintf('Multi-channel SNR (SNRdmt):\t %g dB\n', SNRdmt_wf)
 
 if (equalizer == EQ_TEQ)
     fprintf('Note: shortened response was used for water-filling.\n');
@@ -331,7 +331,7 @@ end
 fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
 % Rate-adaptive Levin-Campello loading:
-[En_discrete, bn_discrete] = DMTLCra(...
+[En, bn] = DMTLCra(...
     gn(1:N_subch),...
     Ex_budget,...
     N, gap_db, ...
@@ -339,10 +339,10 @@ fprintf('\n------------------ Discrete Loading -------------------- \n\n');
     dim_per_subchannel);
 
 % Residual unallocated energy
-fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En_discrete));
+fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En));
 
 % Energy per real dimension
-En_bar_lc = En_discrete ./ dim_per_subchannel;
+En_bar = En ./ dim_per_subchannel;
 
 %% Loading adaptation to avoid power penalties in full ICPD mitigation
 % In case the full ICPD equalizers are used, either the frequency-domain or
@@ -362,18 +362,18 @@ if (equalizer == EQ_TIME_PREC || equalizer == EQ_FREQ_PREC)
 fprintf('\n------ Energy-load adaptation for the ICPD Precoder -----\n\n');
 
     % Full Hermitian En_bar vector for the Levin-Campello energy load
-    En_bar_lc_herm = zeros(Nfft, 1);
-    En_bar_lc_herm(subCh_tone_index_herm(1:N_subch)) = En_bar_lc;
-    En_bar_lc_herm(subCh_tone_index_herm(N_subch+1:end)) = ...
-        fliplr(En_bar_lc);
+    En_bar_herm = zeros(Nfft, 1);
+    En_bar_herm(subCh_tone_index_herm(1:N_subch)) = En_bar;
+    En_bar_herm(subCh_tone_index_herm(N_subch+1:end)) = ...
+        fliplr(En_bar);
 
     % Average transmit energy per symbol after precoding
     if (equalizer == EQ_TIME_PREC)
         Ex_precoded = real(trace(TimePrecoder.ici.W * ...
-            diag(En_bar_lc_herm) * TimePrecoder.ici.W'));
+            diag(En_bar_herm) * TimePrecoder.ici.W'));
     else
         Ex_precoded = real(trace(FreqPrecoder.W * ...
-            diag(En_bar_lc_herm) * FreqPrecoder.W'));
+            diag(En_bar_herm) * FreqPrecoder.W'));
     end
 
     % By how much the precoded energy exceeds the budget:
@@ -383,7 +383,7 @@ fprintf('\n------ Energy-load adaptation for the ICPD Precoder -----\n\n');
     budget_red_factor = 1/Ex_budget_excess;
 
     % Rate-adaptive Levin-Campello loading:
-    [En_discrete, bn_discrete] = DMTLCra(...
+    [En, bn] = DMTLCra(...
         gn(1:N_subch),...
         budget_red_factor * Ex_budget,...
         N, gap_db, ...
@@ -391,10 +391,10 @@ fprintf('\n------ Energy-load adaptation for the ICPD Precoder -----\n\n');
         dim_per_subchannel);
 
     % Residual unallocated energy
-    fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En_discrete));
+    fprintf('Unallocated energy:      \t %g\n', Ex_budget - sum(En));
 
     % Energy per real dimension
-    En_bar_lc = En_discrete ./ dim_per_subchannel;
+    En_bar = En ./ dim_per_subchannel;
 
     fprintf('Energy budget was reduced by %.2f %%\n', ...
         100*(1 - budget_red_factor));
@@ -403,41 +403,40 @@ end
 %% Bit loading computations
 
 % Bits per subchannel per dimension
-bn_bar_lc = bn_discrete ./ dim_per_subchannel;
+bn_bar = bn ./ dim_per_subchannel;
 
 % Save a vector with the index of the subchannels that are loaded
-n_loaded = subCh_tone_index(bn_discrete ~= 0);
+n_loaded = subCh_tone_index(bn ~= 0);
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
 % Dimensions in each loaded subchannel
 dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
 
 % Total bits per dimension:
-b_bar_discrete = 1/nDim*(sum(bn_discrete));
+b_bar_discrete = 1/nDim*(sum(bn));
 
 % SNRdmt from the number of bits per dimension
-SNRdmt_discrete    = gap*(2^(2*b_bar_discrete)-1);
-SNRdmt_discrete_db = 10*log10(SNRdmt_discrete);
+SNRdmt    = gap*(2^(2*b_bar_discrete)-1);
+SNRdmt_db = 10*log10(SNRdmt);
+
 % SNR on each tone, per real dimension:
-SNR_n_lc           = En_bar_lc .* gn(1:N_subch);
-% Normalized SNR on each tone, per dimension (should approach the gap)
-SNR_n_norm_lc      = SNR_n_lc ./ (2.^(2*bn_bar_lc) - 1);
+SNR_n     = En_bar .* gn(1:N_subch);
 
 % Bit rate
-Rb = sum(bn_discrete) / Tsym;
+Rb = sum(bn) / Tsym;
 
 fprintf('b_bar:                    \t %g bits/dimension', b_bar_discrete)
 fprintf('\nBit rate:               \t %g mbps\n', Rb/1e6);
 fprintf('Multi-channel SNR (SNRdmt): \t %g dB\n', ...
-    SNRdmt_discrete_db);
+    SNRdmt_db);
 
 % Compare water-filling and discrete-loading
 if (debug && debug_loading)
     figure
-    plot(subCh_tone_index, bn, ...
+    plot(subCh_tone_index, bn_wf, ...
         'linewidth', 1.1)
     hold on
-    plot(subCh_tone_index, bn_discrete, 'g')
+    plot(subCh_tone_index, bn, 'g')
     legend('Water-filling', 'Discrete Loading')
     xlabel('Subchannel');
     ylabel('Bits');
@@ -452,7 +451,7 @@ end
 fprintf('\n------------------ Channel Capacity -------------------- \n\n');
 
 % Capacity per real dimension
-cn_bar = 0.5 * log2(1 + SNR_n_lc);
+cn_bar = 0.5 * log2(1 + SNR_n);
 % Capacity per subchannel
 cn = cn_bar .* dim_per_subchannel;
 % Multi-channel capacity, per dimension:
@@ -471,18 +470,18 @@ fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * nDim /1e6);
 fprintf('\n----------------- Error Probabilities ------------------ \n\n');
 
 % Levin-Campello:
-Pe_bar_n_lc = dmtPe(bn_discrete, SNR_n_lc, dim_per_subchannel);
+Pe_bar_n = dmtPe(bn, SNR_n, dim_per_subchannel);
 
 % NNUB Pe per dimension:
-Pe_bar_lc = mean(Pe_bar_n_lc, 'omitnan');
+Pe_bar = mean(Pe_bar_n, 'omitnan');
 
 fprintf('Approximate NNUB Pe per dimension:\n');
-fprintf('For Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc, 'omitnan'));
+fprintf('For Discrete-load (LC)  :\t %g\n', Pe_bar);
 
 %% Modulators
 
 % Modulation order on each subchannel
-modOrder = 2.^bn_discrete;
+modOrder = 2.^bn;
 
 [modulator, demodulator] = dmtGenerateModems(modOrder, dim_per_subchannel);
 
@@ -493,7 +492,7 @@ modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
 %% Energy loading (constellation scaling factors) and minimum distances
 
 [scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
-                    En_discrete, dim_per_subchannel);
+                    En, dim_per_subchannel);
 
 %% Monte-carlo
 
@@ -527,7 +526,7 @@ dmtObj.modulator         = modulator;
 dmtObj.demodulator       = demodulator;
 
 % Bit-loading dependent parameters for each subchannel
-dmtObj.b_bar_n           = bn_bar_lc;       % Bit load per dimension
+dmtObj.b_bar_n           = bn_bar;          % Bit load per dimension
 dmtObj.modem_n           = modem_n;         % Constellation scaling
 dmtObj.scale_n           = scale_n;         % Subchannel scaling factor
 dmtObj.dmin_n            = dmin_n;          % Minimum distance
@@ -597,8 +596,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     %% Error results
 
     % Symbol error count
-    sym_err_n = sym_err_n + symerr(tx_data(bn_discrete > 0, :), ...
-                                  rx_data(bn_discrete > 0, :), 'row-wise');
+    sym_err_n = sym_err_n + symerr(tx_data(bn > 0, :), ...
+                                  rx_data(bn > 0, :), 'row-wise');
     % Symbol error rate per subchannel
     ser_n     = sym_err_n / (iTransmission * nSymbols);
     % Per-dimensional symbol error rate per subchannel
@@ -624,7 +623,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     % actual estimated input autocorrelation Rxx.
 
     % If the error is too high, bit-loading shall be re-trained
-    if ((mean(ser_n_bar) > 5 * Pe_bar_lc) && ...
+    if ((mean(ser_n_bar) > 2 * Pe_bar) && ...
           (iTransmission * nSymbols) > 1e4)
         % Number of transmitted symbols is checked to avoid triggering
         % re-training when the SER has been measured for a short period
@@ -698,7 +697,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         end
 
         % Rate-adaptive Levin-Campello loading:
-        [En_discrete, bn_discrete] = DMTLCra(...
+        [En, bn] = DMTLCra(...
             gn(1:N_subch),...
             Ex_budget,...
             N, gap_db, ...
@@ -706,33 +705,33 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             dim_per_subchannel);
 
         % Save a vector with the index of the subchannels that are loaded
-        n_loaded = subCh_tone_index(bn_discrete ~= 0);
+        n_loaded = subCh_tone_index(bn ~= 0);
         % Number of subchannels that are loaded
         N_loaded = length(n_loaded);
         % Dimensions in each loaded subchannel
         dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
 
         % Total bits per dimension:
-        b_bar_discrete = 1/nDim*(sum(bn_discrete));
+        b_bar_discrete = 1/nDim*(sum(bn));
         % Bit rate
-        Rb = sum(bn_discrete) / Tsym;
+        Rb = sum(bn) / Tsym;
 
         % Energy per real dimension
-        En_bar_lc = En_discrete ./ dim_per_subchannel;
+        En_bar = En ./ dim_per_subchannel;
         % SNR on each tone, per real dimension:
-        SNR_n_lc    = En_bar_lc .* gn(1:N_subch);
+        SNR_n    = En_bar .* gn(1:N_subch);
         % Update the probability of error
-        Pe_bar_n_lc = dmtPe(bn_discrete, SNR_n_lc, dim_per_subchannel);
-        Pe_bar_lc = mean(Pe_bar_n_lc, 'omitnan');
+        Pe_bar_n = dmtPe(bn, SNR_n, dim_per_subchannel);
+        Pe_bar = mean(Pe_bar_n, 'omitnan');
 
         % Print the results of the new bit-load
         fprintf('b_bar:     \t %g bits/dimension', b_bar_discrete)
         fprintf('\nBit rate:\t %g mbps\n', Rb/1e6);
-        fprintf('Pe_bar (LC)  :\t %g\n', Pe_bar_lc);
+        fprintf('Pe_bar (LC)  :\t %g\n', Pe_bar);
         fprintf('## Restarting transmission...\n\n');
 
         % Update the vector of modulation orders
-        modOrder = 2.^bn_discrete;
+        modOrder = 2.^bn;
         % Update modem objects
         [modulator, demodulator] = dmtGenerateModems(modOrder, ...
             dim_per_subchannel);
@@ -740,7 +739,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
         % Re-generate the subchannel scaling factors
         [scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
-            En_discrete, dim_per_subchannel);
+            En, dim_per_subchannel);
 
         % Finally, reset the SER computation:
         sym_err_n  = zeros(N_loaded, 1);
@@ -760,13 +759,14 @@ end
 
 %% Results
 fprintf('\n----------------------- Results ------------------------ \n\n');
-fprintf('Pe_bar:       \t %g\n', mean(ser_n_bar));
+Pe_bar_measured =  mean(ser_n_bar);
+fprintf('Pe_bar:       \t %g\n', Pe_bar_measured);
 
 if (debug && debug_Pe)
     figure
     semilogy(n_loaded, ser_n_bar, 's')
     hold on
-    semilogy(subCh_tone_index, Pe_bar_n_lc, 'r*')
+    semilogy(subCh_tone_index, Pe_bar_n, 'r*')
     title('Measured SER per dimension vs. nominal $\bar{Pe}$', ...
         'Interpreter', 'latex')
     xlabel('Subchannel (n)')
