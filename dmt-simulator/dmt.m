@@ -21,7 +21,6 @@ N          = 128;       % FFT size and the number of used real dimensions
 nu         = 8;         % Cyclic Prefix Length
 tau        = 8;         % Cyclic Suffix
 windowing  = 0;         % Activate Lcs windowing + Overlap
-nDim       = N + nu;    % Total number of real dimensions per DMT symbol
 gap_db     = 8.8;       % SNR gap to capacity (dB)
 delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
