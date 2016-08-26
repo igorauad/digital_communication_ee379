@@ -494,37 +494,19 @@ c = sum(cn) / nDim;
 fprintf('capacity:               \t %g bits/dimension', c)
 fprintf('\nBit rate:               \t %g mbps\n', c * Rsym * nDim /1e6);
 
-%% Analysis of the Error Probability per dimension
-% Comparison between the water-filling and the discrete loading in terms of
-% the nearest-neighbors union bound probability of error.
+%% Error Probability per dimension
+% Nearest-neighbors union bound probability of error.
 
 fprintf('\n----------------- Error Probabilities ------------------ \n\n');
 
-% Water-filling:
-Pe_bar_n    = dmtPe(bn, SNR_n, dim_per_subchannel);
 % Levin-Campello:
 Pe_bar_n_lc = dmtPe(bn_discrete, SNR_n_lc, dim_per_subchannel);
 
-
-if (debug && debug_Pe)
-    figure
-    semilogy(0:N_subch-1, Pe_bar_n, 'linewidth', 1.1)
-    hold on
-    semilogy(0:N_subch-1, Pe_bar_n_lc, 'r')
-    xlabel('Subchannel');
-    ylabel('$\bar{P_e}$', 'Interpreter', 'latex')
-    legend('Water-filling', 'Levin-Campello')
-    title('Pe per dimension on each subchannel')
-    grid on
-end
-
 % NNUB Pe per dimension:
-Pe_bar    = mean(Pe_bar_n, 'omitnan');
 Pe_bar_lc = mean(Pe_bar_n_lc, 'omitnan');
 
 fprintf('Approximate NNUB Pe per dimension:\n');
-fprintf('Fractional-load (WF):\t %g\n', mean(Pe_bar_n, 'omitnan'));
-fprintf('Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc, 'omitnan'));
+fprintf('For Discrete-load (LC)  :\t %g\n', mean(Pe_bar_n_lc, 'omitnan'));
 
 %% Modulators
 
@@ -818,6 +800,6 @@ if (debug && debug_Pe)
         'Interpreter', 'latex')
     xlabel('Subchannel (n)')
     ylabel('$\bar{Pe}(n)$', 'Interpreter', 'latex')
-    legend('Measured','LC')
+    legend('Measured','Theoretical Approx')
     grid on
 end
