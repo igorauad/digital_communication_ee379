@@ -3,27 +3,44 @@ function [rx_data] = dmtRx(y, dmt)
 % [rx_data] function = dmtRx(dmt)
 %
 % Inputs:
-%  y       -> Received (frame aligned) sequence
+%  y       -> Received (non-aligned) sequence
 %
 % Outputs:
 %  rx_data -> Bits decoded per subchannel
 
 % Equalizer Types
+EQ_TEQ       = 1;
 EQ_FREQ_PREC = 2;
 EQ_TIME_PREC = 3;
 
+% Parameters
 Nfft     = dmt.Nfft;
 N_subch  = dmt.N_subch;
 nSymbols = dmt.nSymbols;
 nu       = dmt.nu;
-tau      = dmt.tau;
+n0       = dmt.n0;
 
 % Preallocate
 rx_data    = zeros(N_subch, nSymbols);
 
+%% Time-domain Equalization
+switch (dmt.equalizer)
+    case EQ_TEQ
+        z = conv(dmt.w, y);
+    otherwise
+        z = y;
+end
+
+%% Frame Synchronization
+% Note: synchronization introduces a phase shift that should be taken
+% into account in the FEQ.
+
+nRxSamples = (Nfft+nu)*nSymbols;
+y_sync     = z((n0 + 1):(n0 + nRxSamples));
+
 %% Serial to Parallel
 
-y_sliced = reshape(y, Nfft + nu, nSymbols);
+y_sliced = reshape(y_sync, Nfft + nu, nSymbols);
 
 %% Extension removal
 

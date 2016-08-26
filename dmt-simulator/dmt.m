@@ -638,24 +638,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     %% Channel
     [y] = dmtChannel(u, p, dmtObj);
 
-    %% Time-domain Equalization
-    switch (equalizer)
-        case EQ_TEQ
-            z = conv(w, y);
-        otherwise
-            z = y;
-    end
-
-    %% Frame Synchronization
-    % Note: synchronization introduces a phase shift that should be taken
-    % into account in the FEQ.
-
-    nRxSamples = (Nfft+nu)*nSymbols;
-    y_sync     = z((n0 + 1):(n0 + nRxSamples));
-
     %% DMT Receiver
-
-    [rx_data] = dmtRx(y_sync, dmtObj);
+    [rx_data] = dmtRx(y, dmtObj);
 
     %% Error results
 
