@@ -114,6 +114,7 @@ N_subch  = length(subCh_tone_index);
 
 % Copy to DMT Object
 dmtObj.iTonesTwoSided = subCh_tone_index_herm;
+dmtObj.iTones         = subCh_tone_index;
 dmtObj.N_subch        = N_subch;
 
 %% Pulse Response
@@ -499,10 +500,6 @@ dmtObj.scale_n           = scale_n;         % Subchannel scaling factor
 dmtObj.dmin_n            = dmin_n;          % Minimum distance
 dmtObj.FEQ_n             = FEQn;            % FEQ
 
-% Look-up Tables
-dmtObj.iTones            = subCh_tone_index;
-dmtObj.iTonesTwoSided    = subCh_tone_index_herm;
-
 %% Iterative Transmissions
 
 iTransmission = 0;
@@ -611,49 +608,19 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             end
             % Update the effective channel:
             p_eff = conv(p,w);
-            % Update the corresponding frequency domain response:
-            H = fft(p_eff, Nfft);
-            % Store only the response at the used indices of the FFT
-            Hn = H(subCh_tone_index_herm);
-            % Equalizer freq. response:
-            H_w = fft(w, Nfft);
             % Update the FEQ
-            FEQn    = (1 ./ (Hn .* phaseShift));
-        end
+            FEQn = dmtFEQ(p_eff, dmtObj);
 
+            % Update equalizers in the DMT Object
+            dmtObj.w      = w;    % TEQ
+            dmtObj.FEQ_n  = FEQn; % FEQ
+        end
 
         % Nfft x Nfft Autocorrelation Matrix
         Rxx = toeplitz(rxx(Nfft:end));
 
-        % Update the ICPD based on the ISI Matrices and the autocorrelation
-        % matrix
-        switch (equalizer)
-            case {EQ_TEQ, EQ_NONE}
-                % Compute the ISI matrices
-                [Hisi, ~, ~, HpreIsi, ~] = ...
-                    dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
-
-                % Total ICPD PSD
-                S_icpd = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft);
-
-            case {EQ_FREQ_PREC, EQ_TIME_PREC}
-                % Compute the ISI matrices
-                [~, ~, ~, HpreIsi, ~] = ...
-                    dmtIsiIciMatrices(p_eff, n0, nu, tau, Nfft, windowing);
-
-                % PSD given by pre-cursor ICPD
-                S_icpd = icpdPsdMtx(zeros(Nfft), HpreIsi, Rxx, Nfft);
-        end
-
         % Update the gain-to-noise ratio:
-        switch (equalizer)
-            case EQ_TEQ
-                gn = (abs(H).^2)./((N0_over_2 * abs(H_w).^2) + S_icpd.');
-                gn = gn(subCh_tone_index_herm);
-            otherwise
-                gn = (abs(Hn).^2) ./ ...
-                    (N0_over_2 + S_icpd(subCh_tone_index_herm).');
-        end
+        gn = dmtGainToNoise(p_eff, dmtObj, Rxx);
 
         % Rate-adaptive Levin-Campello loading:
         [En, bn] = DMTLCra(...
@@ -663,6 +630,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             max_load, ...
             dim_per_subchannel);
 
+        % Bits per subchannel per dimension
+        bn_bar = bn ./ dim_per_subchannel;
         % Save a vector with the index of the subchannels that are loaded
         n_loaded = subCh_tone_index(bn ~= 0);
         % Number of subchannels that are loaded
@@ -678,7 +647,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Energy per real dimension
         En_bar = En ./ dim_per_subchannel;
         % SNR on each tone, per real dimension:
-        SNR_n    = En_bar .* gn(1:N_subch);
+        SNR_n  = En_bar .* gn(1:N_subch);
         % Update the probability of error
         Pe_bar_n = dmtPe(bn, SNR_n, dim_per_subchannel);
         Pe_bar = mean(Pe_bar_n, 'omitnan');
@@ -699,6 +668,14 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Re-generate the subchannel scaling factors
         [scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
             En, dim_per_subchannel);
+
+        % Update DMT Object
+        dmtObj.modulator    = modulator;
+        dmtObj.demodulator  = demodulator;
+        dmtObj.b_bar_n      = bn_bar;        % Bit load per dimension
+        dmtObj.modem_n      = modem_n;       % Constellation scaling
+        dmtObj.scale_n      = scale_n;       % Subchannel scaling factor
+        dmtObj.dmin_n       = dmin_n;        % Minimum distance
 
         % Finally, reset the SER computation:
         sym_err_n  = zeros(N_loaded, 1);
