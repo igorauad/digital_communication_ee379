@@ -1,4 +1,4 @@
-function [u] = dmtTx(tx_data, dmt)
+function [u, x] = dmtTx(tx_data, dmt)
 % Random DMT Symbol generation
 % [u] = dmtTx(tx_data, dmt)
 %
@@ -7,7 +7,8 @@ function [u] = dmtTx(tx_data, dmt)
 %  dmt     -> Struct with DMT parameters
 %
 % Output:
-%  u       -> Modulated sequence
+%  u       -> Extended/windowed modulated sequence
+%  x       -> IDFT output (non-extended modulated sequence)
 
 % Equalizer Types
 EQ_FREQ_PREC = 2;

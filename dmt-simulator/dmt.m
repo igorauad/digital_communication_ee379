@@ -562,7 +562,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     [tx_data] = dmtRndData(dmtObj);
 
     %% DMT Modulation
-    [u] = dmtTx(tx_data, dmtObj);
+    [u, x] = dmtTx(tx_data, dmtObj);
 
     %% Debug Tx Energy
 
