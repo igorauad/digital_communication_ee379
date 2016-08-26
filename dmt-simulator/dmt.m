@@ -26,7 +26,7 @@ delta_f    = 51.75e3;   % Subchannel bandwidth
 nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
 max_load   = inf;        % Maximum allowed bit load for each subchannel
 equalizer  = 0;         % 0 - None; 1) TEQ; 2) Cheong; 3) Time Domain
-noDcNyquist= 1;         % Flag to avoid loading DC and Nyquist subchannels
+dcNyquist  = 0;         % Flag to enable loading DC and Nyquist subchan
 % MMSE-TEQ Parameters
 teqType    = 0;         % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
 % Monte-Carlo Parameters
@@ -108,7 +108,7 @@ Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 %% Look-up tables for the indexes and number of dimensions of subchannels
 
 [subCh_tone_index, subCh_tone_index_herm] = ...
-    dmtSubchIndexLookup(N, Nfft, L, noDcNyquist);
+    dmtSubchIndexLookup(N, Nfft, L, dcNyquist);
 
 [dim_per_subchannel, dim_per_dft_tone] = ...
     dmtSubchDimLookup(Nfft, subCh_tone_index);
