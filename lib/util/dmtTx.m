@@ -26,7 +26,7 @@ for iModem = 1:length(dmt.modulator)
     M = dmt.modulator{iModem}.M;       % Modulation order
     iSubChs = (dmt.modem_n == iModem); % Loaded subchannels
     % Constellation Encoding
-    X(dmt.subCh_tone_index(iSubChs), :) = diag(dmt.scale_n(iSubChs)) * ...
+    X(dmt.iTones(iSubChs), :) = diag(dmt.scale_n(iSubChs)) * ...
         dmt.modulator{iModem}.modulate(tx_data(iSubChs, :));
 end
 
@@ -35,8 +35,8 @@ X(Nfft/2 + 2:Nfft, :) = flipud(conj( X(2:Nfft/2, :)));
 
 %% Per-tone Precoder
 if (dmt.equalizer == EQ_FREQ_PREC)
-    X = precodeFreqDomain(X, dmt.Precoder, dmt.bn_bar_lc, ...
-        dmt.dmin_n, dmt.subCh_tone_index);
+    X = precodeFreqDomain(X, dmt.Precoder, dmt.b_bar_n, ...
+        dmt.dmin_n, dmt.iTones);
 end
 
 x = sqrt(Nfft) * ifft(X, Nfft);

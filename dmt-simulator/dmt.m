@@ -548,7 +548,6 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 
 % Preallocate
 X          = zeros(Nfft, nSymbols);
-rx_data    = zeros(N_subch, nSymbols);
 sym_err_n  = zeros(N_loaded, 1);
 
 numErrs = 0; numDmtSym = 0;
@@ -560,6 +559,8 @@ BitError = comm.ErrorRate;
 % Create an object with all the parameters
 
 dmtObj = [];
+
+% Fixed Parameters
 dmtObj.nSymbols          = nSymbols;
 dmtObj.Nfft              = Nfft;
 dmtObj.N_subch           = N_subch;
@@ -567,14 +568,27 @@ dmtObj.nu                = nu;
 dmtObj.tau               = tau;
 dmtObj.n0                = n0;
 dmtObj.N0_over_2         = N0_over_2;
+
+% Mod/Demod Objects
 dmtObj.modulator         = modulator;
 dmtObj.demodulator       = demodulator;
+
+% Bit-loading dependent parameters for each subchannel
+dmtObj.b_bar_n           = bn_bar_lc;       % Bit load per dimension
 dmtObj.modem_n           = modem_n;         % Constellation scaling
 dmtObj.scale_n           = scale_n;         % Subchannel scaling factor
-dmtObj.subCh_tone_index  = subCh_tone_index;
+dmtObj.dmin_n            = dmin_n;          % Minimum distance
+dmtObj.FEQ_n             = FEQn;            % FEQ
+
+% Look-up Tables
+dmtObj.iTones            = subCh_tone_index;
+dmtObj.iTonesTwoSided    = subCh_tone_index_herm;
+
+% Windowing
 dmtObj.windowing         = windowing;
 dmtObj.window            = dmtWindow;
 
+% Equalization/Precoding
 dmtObj.equalizer         = equalizer;
 switch equalizer
     case EQ_TEQ
@@ -584,9 +598,6 @@ switch equalizer
     case EQ_TIME_PREC
         dmtObj.Precoder = TimePrecoder;
 end
-
-dmtObj.bn_bar_lc         = bn_bar_lc;
-dmtObj.dmin_n            = dmin_n;
 
 %% Iterative Transmissions
 
@@ -692,55 +703,16 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             z = y;
     end
 
-    %% Synchronization
+    %% Frame Synchronization
     % Note: synchronization introduces a phase shift that should be taken
     % into account in the FEQ.
 
     nRxSamples = (Nfft+nu)*nSymbols;
     y_sync     = z((n0 + 1):(n0 + nRxSamples));
 
-    %% Slicing
+    %% DMT Receiver
 
-    y_sliced = reshape(y_sync, Nfft + nu, nSymbols);
-
-    %% Extension removal
-
-    y_no_ext = y_sliced(nu + 1:end, :);
-
-    %% Frequency-domain Equalization
-    switch (equalizer)
-        case EQ_TIME_PREC % Time-domain ISI DFE
-            % Note: the section name may be misleading. The receiver below
-            % equalizes ISI using time-domain DMT symbols. However, its
-            % derivation is based in the frequency-domain.
-            [ rx_data, Z ] = dmtTdDfeReceiver(y_no_ext, modulator, ...
-                demodulator, modem_n, scale_n, TimePrecoder, FEQn, ...
-                subCh_tone_index_herm);
-
-        case EQ_FREQ_PREC % DMT with additional modulo operation
-            [ rx_data, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
-                modem_n, scale_n, FEQn(1:N_subch), bn_bar_lc, dmin_n, ...
-                subCh_tone_index);
-
-        otherwise
-            % FFT
-            Y = (1/sqrt(Nfft)) * fft(y_no_ext, Nfft);
-
-            % FEQ - One-tap Frequency Equalizer
-            Z = diag(FEQn) * Y(subCh_tone_index_herm, :);
-
-            %% Constellation decoding (decision)
-
-            % Iterate over the distinct demodulators
-            for iModem = 1:length(demodulator)
-                iSubChs = (modem_n == iModem); % Loaded subchannels
-                % Demodulate
-                rx_data(iSubChs, :) = ...
-                    demodulator{iModem}.demodulate(...
-                    diag(1./scale_n(iSubChs)) * Z(iSubChs, :));
-            end
-
-    end
+    [rx_data] = dmtRx(y_sync, dmtObj);
 
     %% Error results
 
