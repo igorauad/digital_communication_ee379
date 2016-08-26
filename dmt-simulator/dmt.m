@@ -498,9 +498,8 @@ modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
 fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 
 % Preallocate
-X          = zeros(Nfft, nSymbols);
 sym_err_n  = zeros(N_loaded, 1);
-
+rxx        = zeros(2*Nfft - 1, 1); % Autocorrelation
 numErrs = 0; numDmtSym = 0;
 
 % Sys Objects
@@ -563,6 +562,16 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     %% DMT Modulation
     [u, x] = dmtTx(tx_data, dmtObj);
+
+    %% Transmit Autocorrelation
+
+    % Input Autocorrelation based on actual transmit data
+    [rxx_current, ~] = xcorr(x(:), Nfft-1, 'unbiased');
+    if (iTransmission > 1)
+        rxx = (rxx_current + rxx)/2;
+    else
+        rxx = rxx_current;
+    end
 
     %% Debug Tx Energy
 
@@ -632,13 +641,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
         fprintf('\n## Re-training the ICPD PSD and the bit-load vector...\n');
 
-        % Input Autocorrelation based on actual transmit data
-        [r, l] = xcorr(x(:), Nfft-1, 'unbiased');
-
         % For an MMSE_TEQ, jointly design the TEQ
         if (equalizer == EQ_TEQ && teqType == TEQ_MMSE)
             % Autocorrelation matrix with the appropriate dimensions
-            Rxx = toeplitz(r(Nfft:Nfft + floor(nTaps/L)*L + (Lh-1) - 1));
+            Rxx = toeplitz(rxx(Nfft:Nfft + floor(nTaps/L)*L + (Lh-1) - 1));
             % Re-design the TEQ
             [w, SNRteq] = ...
                 mmse_teq(p, L, delta, Nf, nu, Rxx, N0_over_2, debug_teq);
@@ -663,7 +669,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
 
         % Nfft x Nfft Autocorrelation Matrix
-        Rxx = toeplitz(r(Nfft:end));
+        Rxx = toeplitz(rxx(Nfft:end));
 
         % Update the ICPD based on the ISI Matrices and the autocorrelation
         % matrix
