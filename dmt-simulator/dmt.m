@@ -539,7 +539,7 @@ modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
 
 %% Energy loading (constellation scaling factors) and minimum distances
 
-[Scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
+[scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
                     En_discrete, dim_per_subchannel);
 
 %% Monte-carlo
@@ -548,7 +548,6 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 
 % Preallocate
 X          = zeros(Nfft, nSymbols);
-tx_data    = zeros(N_subch, nSymbols);
 rx_data    = zeros(N_subch, nSymbols);
 sym_err_n  = zeros(N_loaded, 1);
 
@@ -556,6 +555,38 @@ numErrs = 0; numDmtSym = 0;
 
 % Sys Objects
 BitError = comm.ErrorRate;
+
+%% DMT Struct
+% Create an object with all the parameters
+
+dmtObj = [];
+dmtObj.nSymbols          = nSymbols;
+dmtObj.Nfft              = Nfft;
+dmtObj.N_subch           = N_subch;
+dmtObj.nu                = nu;
+dmtObj.tau               = tau;
+dmtObj.n0                = n0;
+dmtObj.N0_over_2         = N0_over_2;
+dmtObj.modulator         = modulator;
+dmtObj.demodulator       = demodulator;
+dmtObj.modem_n           = modem_n;         % Constellation scaling
+dmtObj.scale_n           = scale_n;         % Subchannel scaling factor
+dmtObj.subCh_tone_index  = subCh_tone_index;
+dmtObj.windowing         = windowing;
+dmtObj.window            = dmtWindow;
+
+dmtObj.equalizer         = equalizer;
+switch equalizer
+    case EQ_TEQ
+        dmtObj.w = w;
+    case EQ_FREQ_PREC
+        dmtObj.Precoder = FreqPrecoder;
+    case EQ_TIME_PREC
+        dmtObj.Precoder = TimePrecoder;
+end
+
+dmtObj.bn_bar_lc         = bn_bar_lc;
+dmtObj.dmin_n            = dmin_n;
 
 %% Iterative Transmissions
 
@@ -565,46 +596,11 @@ iReTraining   = 0;
 while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     iTransmission = iTransmission + 1;
 
-    %% Random DMT Symbol generation
+    %% Random DMT Data divided per subchannel
+    [tx_data] = dmtRndData(dmtObj);
 
-    % Erase any previous entries within the symbols
-    X  = zeros(Nfft, nSymbols);
-
-    % Iterate over the distinct modulators
-    for iModem = 1:length(modulator)
-        M = modulator{iModem}.M;       % Modulation order
-        iSubChs = (modem_n == iModem); % Loaded subchannels
-        % Generate random data
-        tx_data(iSubChs, :) = randi(M, sum(iSubChs), nSymbols) - 1;
-        % Constellation Encoding
-        X(subCh_tone_index(iSubChs), :) = diag(Scale_n(iSubChs)) * ...
-                modulator{iModem}.modulate(tx_data(iSubChs, :));
-    end
-
-    % Hermitian symmetry
-    X(Nfft/2 + 2:Nfft, :) = flipud( conj( X(2:Nfft/2, :) ) );
-
-    %% Per-tone Precoder
-    if (equalizer == EQ_FREQ_PREC)
-        X = precodeFreqDomain( X, FreqPrecoder, bn_bar_lc, dmin_n, ...
-            subCh_tone_index );
-    end
-
-    x = sqrt(Nfft) * ifft(X, Nfft);
-
-    if (equalizer == EQ_TIME_PREC)
-        x = precodeTimeDomain( x, TimePrecoder );
-    end
-
-    %% Cyclic extension -> Windowing + overlap -> Parallel to serial
-    if (windowing)
-        x_ext = [x(Nfft-nu+1:Nfft, :); x; x(1:tau,:)];
-        x_ce = windowAndOverlap(x_ext, dmtWindow, Nfft, nu, tau);
-        u = x_ce(:);
-    else
-        x_ext = [x(Nfft-nu+1:Nfft, :); x];
-        u = x_ext(:);
-    end
+    %% DMT Modulation
+    [u] = dmtTx(tx_data, dmtObj);
 
     %% Debug Tx Energy
 
@@ -718,12 +714,12 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
             % equalizes ISI using time-domain DMT symbols. However, its
             % derivation is based in the frequency-domain.
             [ rx_data, Z ] = dmtTdDfeReceiver(y_no_ext, modulator, ...
-                demodulator, modem_n, Scale_n, TimePrecoder, FEQn, ...
+                demodulator, modem_n, scale_n, TimePrecoder, FEQn, ...
                 subCh_tone_index_herm);
 
         case EQ_FREQ_PREC % DMT with additional modulo operation
             [ rx_data, Z ] = dmtFreqPrecReceiver(y_no_ext, demodulator, ...
-                modem_n, Scale_n, FEQn(1:N_subch), bn_bar_lc, dmin_n, ...
+                modem_n, scale_n, FEQn(1:N_subch), bn_bar_lc, dmin_n, ...
                 subCh_tone_index);
 
         otherwise
@@ -741,7 +737,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
                 % Demodulate
                 rx_data(iSubChs, :) = ...
                     demodulator{iModem}.demodulate(...
-                    diag(1./Scale_n(iSubChs)) * Z(iSubChs, :));
+                    diag(1./scale_n(iSubChs)) * Z(iSubChs, :));
             end
 
     end
@@ -891,7 +887,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Re-generate modem look-up table
         modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
         % Re-generate the subchannel scaling factors
-        [Scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
+        [scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
             En_discrete, dim_per_subchannel);
 
         % Finally, reset the SER computation:
@@ -904,7 +900,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         && iTransmission == 1)
         k = debug_tone;
 
-        viewConstellation(Z, Scale_n(k) * ...
+        viewConstellation(Z, scale_n(k) * ...
                 modulator{modem_n(k)}.modulate(0:modOrder(k) - 1), k);
     end
 
