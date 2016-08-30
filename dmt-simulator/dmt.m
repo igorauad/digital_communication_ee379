@@ -513,7 +513,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
         fprintf('\n## Re-training the ICPD PSD and the bit-loading...\n');
 
-        [ dmtObj, bn, En, SNR_n, n_loaded ] = dmtTrainining(p_eff, ...
+        [ dmtObj, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
             dmtObj, rxx );
 
         % Number of subchannels that are loaded

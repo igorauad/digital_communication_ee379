@@ -1,8 +1,8 @@
-function [ Dmt, bn, En, SNR_n, n_loaded ] = dmtTrainining(p, Dmt, rxx )
+function [ Dmt, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, Dmt, rxx )
 % Training of DMT FEQ and Bit Loading
 %
 % Inputs
-%  p     -> Effective channel pulse response
+%  p     -> Original channel pulse response
 %  dmt   -> DMT Object
 %  rxx   -> Tx Unbiased Autocorrelation Vector
 
@@ -25,10 +25,22 @@ if (equalizer  == EQ_TEQ)
     nTaps = Dmt.teqTaps;
     delta = Dmt.teqDelta;
     Nf    = Dmt.teqNf;
+    w     = Dmt.w;
+end
+
+%% Effective channel pulse response
+
+switch (equalizer)
+    case EQ_TEQ
+        % New effective channel:
+        p_eff = conv(p, w);
+    otherwise
+        p_eff = p;
 end
 
 % Pulse response length
 Lh = length(p);
+
 %% For an MMSE_TEQ, jointly design the TEQ
 if (equalizer == EQ_TEQ && teqType == TEQ_MMSE)
 
@@ -48,9 +60,10 @@ if (equalizer == EQ_TEQ && teqType == TEQ_MMSE)
     end
 
     % Update the effective channel:
-    p = conv(p,w);
+    p_eff = conv(p,w);
+
     % Update the FEQ
-    FEQn = dmtFEQ(p, Dmt);
+    FEQn = dmtFEQ(p_eff, Dmt);
 
     % Update equalizers in the DMT Object
     Dmt.w      = w;    % TEQ
@@ -61,7 +74,7 @@ end
 Rxx = toeplitz(rxx(Nfft:end));
 
 %% Update the gain-to-noise ratio:
-gn = dmtGainToNoise(p, Dmt, Rxx);
+gn = dmtGainToNoise(p_eff, Dmt, Rxx);
 
 %% Re-compute the bit loading
 [bn, En, SNR_n, n_loaded] = dmtLoading(Dmt, gn);
