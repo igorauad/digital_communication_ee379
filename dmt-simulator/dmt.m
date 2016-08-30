@@ -1,39 +1,33 @@
-%% DMT Equalization Analysis through Monte-Carlo Simulation
-clearvars, clc
-addpath(genpath('../lib'))
+function [Pe_bar] = dmt(Dmt, channelChoice)
+% DMT Simulator
 
 %% Debug levels
-debug               = 1;  % Enable debug information
-debug_constellation = 0;  % Debug a certain subchannel constellation
-debug_tone          = 16; % Tone whose constellation is debugged
-debug_Pe            = 1;  % Debug error probabilities
-debug_loading       = 0;  % Debug bit loading
-debug_tx_energy     = 0;  % Debug transmit energy
-debug_teq           = 0;  % Debug TEQ design
+debug               = Dmt.debug.enable;
+debug_constellation = Dmt.debug.constellation;
+debug_tone          = Dmt.debug.tone;
+debug_Pe            = Dmt.debug.Pe;
+debug_loading       = Dmt.debug.loading;
+debug_tx_energy     = Dmt.debug.tx_energy;
+debug_teq           = Dmt.debug.teq;
 
-%% Parameters
-alpha      = 1;         % Increase FFT size by this factor preserving Fs
-% Note: this is useful to evaluate the DMT performance as N -> infty
-L          = 1;         % Oversampling (support only for integer values)
-Px         = 1e-3;      % Transmit Power (W)
-N0_over_2  = 1e-10;     % Noise PSD (W/Hz/dim) and variance per dimension
-N          = 128;       % FFT size and the number of used real dimensions
-nu         = 8;         % Cyclic Prefix Length
-tau        = 8;         % Cyclic Suffix
-windowing  = 0;         % Activate Lcs windowing + Overlap
-gap_db     = 8.8;       % SNR gap to capacity (dB)
-delta_f    = 51.75e3;   % Subchannel bandwidth
-nSymbols   = 1e3;       % Number of DMT symbols per transmission iteration
-max_load   = inf;        % Maximum allowed bit load for each subchannel
-equalizer  = 0;         % 0 - None; 1) TEQ; 2) Cheong; 3) Time Domain
-dcNyquist  = 0;         % Flag to enable loading DC and Nyquist subchan
-% MMSE-TEQ Parameters
-teqType    = 0;         % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
-% Monte-Carlo Parameters
-maxNumErrs   = 100;
-maxNumDmtSym = 1e12;
-% Channel
-channelChoice = 0;
+%% Extract Parameters
+
+alpha        = Dmt.alpha;
+L            = Dmt.L;
+Px           = Dmt.Px;
+N0_over_2    = Dmt.N0_over_2;
+N            = Dmt.N;
+nu           = Dmt.nu;
+tau          = Dmt.tau;
+windowing    = Dmt.windowing;
+gap_db       = Dmt.gap_db;
+delta_f      = Dmt.delta_f;
+nSymbols     = Dmt.nSymbols;
+equalizer    = Dmt.equalizer;
+dcNyquist    = Dmt.dcNyquist;
+teqType      = Dmt.teqType;
+maxNumErrs   = Dmt.maxNumErrs;
+maxNumDmtSym = Dmt.maxNumDmtSym;
 
 %% Derived computations:
 
@@ -73,27 +67,14 @@ Ex        = Px * Tsym;      % Average DMT symbol energy
 Ex_budget = Ex*(Nfft/(Nfft + nu)); % Energy budget passed to the WaterFill
 Ex_bar    = Ex / nDim;      % Energy per real dimension
 
-%% DMT Struct
-% Create an object with all the parameters
-
-dmtObj = [];
-
-% Fixed Parameters
-dmtObj.nSymbols          = nSymbols;
-dmtObj.Nfft              = Nfft;
-dmtObj.N                 = N;
-dmtObj.L                 = L;
-dmtObj.nu                = nu;
-dmtObj.nDim              = nDim;
-dmtObj.N0_over_2         = N0_over_2;
-dmtObj.Ex_bar            = Ex_bar;
-dmtObj.Ex_budget         = Ex_budget;
-dmtObj.Tsym              = Tsym;
-dmtObj.gap_db            = gap_db;
-dmtObj.max_load          = max_load;
+% Copy the Required Parameters to the DMT structure
+Dmt.Nfft              = Nfft;
+Dmt.nDim              = nDim;
+Dmt.Ex_bar            = Ex_bar;
+Dmt.Ex_budget         = Ex_budget;
+Dmt.Tsym              = Tsym;
 
 %% Constants
-POST_PRE_ICPD_FLAG = 0;
 
 % TEQ criterion
 TEQ_MMSE    = 0;
@@ -120,10 +101,10 @@ Q = (1/sqrt(Nfft))*fft(eye(Nfft));
 N_subch  = length(subCh_tone_index);
 
 % Copy to DMT Object
-dmtObj.iTonesTwoSided     = subCh_tone_index_herm;
-dmtObj.iTones             = subCh_tone_index;
-dmtObj.dim_per_subchannel = dim_per_subchannel;
-dmtObj.N_subch            = N_subch;
+Dmt.iTonesTwoSided     = subCh_tone_index_herm;
+Dmt.iTones             = subCh_tone_index;
+Dmt.dim_per_subchannel = dim_per_subchannel;
+Dmt.N_subch            = N_subch;
 
 %% Pulse Response
 
@@ -183,10 +164,10 @@ else
 end
 
 % Windowing
-dmtObj.windowing = windowing;
-dmtObj.tau       = tau;
+Dmt.windowing = windowing;
+Dmt.tau       = tau;
 if (windowing)
-    dmtObj.window = dmtWindow;
+    Dmt.window = dmtWindow;
 end
 
 %% Cursor
@@ -249,21 +230,21 @@ fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
 end
 
 % Copy cursor to DMT Object
-dmtObj.n0 = n0;
+Dmt.n0 = n0;
 
 % Equalization/Precoding
-dmtObj.equalizer         = equalizer;
+Dmt.equalizer         = equalizer;
 switch equalizer
     case EQ_TEQ
-        dmtObj.w        = w;
-        dmtObj.teqTaps  = nTaps;
-        dmtObj.teqDelta = delta;
-        dmtObj.teqNf    = Nf;
-        dmtObj.teqType  = teqType;
+        Dmt.w        = w;
+        Dmt.teqTaps  = nTaps;
+        Dmt.teqDelta = delta;
+        Dmt.teqNf    = Nf;
+        Dmt.teqType  = teqType;
     case EQ_FREQ_PREC
-        dmtObj.Precoder = FreqPrecoder;
+        Dmt.Precoder = FreqPrecoder;
     case EQ_TIME_PREC
-        dmtObj.Precoder = TimePrecoder;
+        Dmt.Precoder = TimePrecoder;
 end
 
 %% Effective pulse response
@@ -278,11 +259,11 @@ end
 
 %% Frequency Equalizer
 
-FEQn = dmtFEQ(p_eff, dmtObj);
+FEQn = dmtFEQ(p_eff, Dmt);
 
 %% Gain-to-noise Ratio
 
-[ gn ] = dmtGainToNoise(p_eff, dmtObj);
+[ gn ] = dmtGainToNoise(p_eff, Dmt);
 
 %% Water filling
 
@@ -320,7 +301,7 @@ end
 
 fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
-[bn, En, SNR_n, n_loaded] = dmtLoading(dmtObj, gn);
+[bn, En, SNR_n, n_loaded] = dmtLoading(Dmt, gn);
 
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
@@ -397,33 +378,33 @@ modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
 %% Prepare DMT Struct for Monte-Carlo
 
 % Mod/Demod Objects
-dmtObj.modulator         = modulator;
-dmtObj.demodulator       = demodulator;
+Dmt.modulator         = modulator;
+Dmt.demodulator       = demodulator;
 
 % Bit-loading dependent parameters for each subchannel
-dmtObj.b_bar_n           = bn_bar;          % Bit load per dimension
-dmtObj.modem_n           = modem_n;         % Constellation scaling
-dmtObj.scale_n           = scale_n;         % Subchannel scaling factor
-dmtObj.dmin_n            = dmin_n;          % Minimum distance
-dmtObj.FEQ_n             = FEQn;            % FEQ
+Dmt.b_bar_n           = bn_bar;          % Bit load per dimension
+Dmt.modem_n           = modem_n;         % Constellation scaling
+Dmt.scale_n           = scale_n;         % Subchannel scaling factor
+Dmt.dmin_n            = dmin_n;          % Minimum distance
+Dmt.FEQ_n             = FEQn;            % FEQ
 
 %% Traing Loading based on modulated sequence
 
 fprintf('\n------------------ Trained Loading -------------------- \n\n');
 
 % Random DMT Data divided per subchannel
-[tx_data] = dmtRndData(dmtObj);
+[tx_data] = dmtRndData(Dmt);
 
 % DMT Modulation
-[u, x] = dmtTx(tx_data, dmtObj);
+[u, x] = dmtTx(tx_data, Dmt);
 
 % Transmit Autocorrelation
 
 % Input Autocorrelation based on actual transmit data
 [rxx, ~] = xcorr(x(:), Nfft-1, 'unbiased');
 
-[ dmtObj, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
-    dmtObj, rxx );
+[ Dmt, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
+    Dmt, rxx );
 
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
@@ -457,10 +438,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     iTransmission = iTransmission + 1;
 
     %% Random DMT Data divided per subchannel
-    [tx_data] = dmtRndData(dmtObj);
+    [tx_data] = dmtRndData(Dmt);
 
     %% DMT Modulation
-    [u, x] = dmtTx(tx_data, dmtObj);
+    [u, x] = dmtTx(tx_data, Dmt);
 
     %% Transmit Autocorrelation
 
@@ -493,10 +474,10 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
     end
 
     %% Channel
-    [y] = dmtChannel(u, p, dmtObj);
+    [y] = dmtChannel(u, p, Dmt);
 
     %% DMT Receiver
-    [rx_data] = dmtRx(y, dmtObj);
+    [rx_data] = dmtRx(y, Dmt);
 
     %% Error results
 
@@ -538,8 +519,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
         fprintf('\n## Re-training the ICPD PSD and the bit-loading...\n');
 
-        [ dmtObj, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
-            dmtObj, rxx );
+        [ Dmt, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
+            Dmt, rxx );
 
         % Number of subchannels that are loaded
         N_loaded = length(n_loaded);
@@ -586,4 +567,6 @@ if (debug && debug_Pe)
     ylabel('$\bar{Pe}(n)$', 'Interpreter', 'latex')
     legend('Measured','Theoretical Approx')
     grid on
+end
+
 end
