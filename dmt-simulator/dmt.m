@@ -528,7 +528,7 @@ while ((numErrs < maxNumErrs) && (iTransmission < maxIterations))
     % actual estimated input autocorrelation Rxx.
 
     % If the error is too high, bit-loading shall be re-trained
-    if ((mean(ser_n_bar) > 3 * Pe_bar) && ...
+    if ((mean(ser_n_bar) > 2 * Pe_bar) && ...
           (iTransmission * nSymbols) > 1e4)
         % Number of transmitted symbols is checked to avoid triggering
         % re-training when the SER has been measured for a short period
