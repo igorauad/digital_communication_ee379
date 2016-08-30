@@ -1,4 +1,4 @@
-function [bn, En, SNR_n, n_loaded] = dmtLoading(dmt, gn, gap_db, max_load)
+function [bn, En, SNR_n, n_loaded] = dmtLoading(dmt, gn)
 % Computes the bit-loading and adapt it if necessary
 
 % Equalizer Types
@@ -12,11 +12,12 @@ nDim               = dmt.nDim;
 N_subch            = dmt.N_subch;
 equalizer          = dmt.equalizer;
 Tsym               = dmt.Tsym;
+gap_db             = dmt.gap_db;
+max_load           = dmt.max_load;
 
 gap = 10^(gap_db/10); % Gap in linear scale
 
 %% Discrete-loading: Levin Campello Rate Adaptive
-fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
 % Rate-adaptive Levin-Campello loading:
 [En, bn] = DMTLCra(...

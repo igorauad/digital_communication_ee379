@@ -82,12 +82,15 @@ dmtObj = [];
 dmtObj.nSymbols          = nSymbols;
 dmtObj.Nfft              = Nfft;
 dmtObj.N                 = N;
+dmtObj.L                 = L;
 dmtObj.nu                = nu;
 dmtObj.nDim              = nDim;
 dmtObj.N0_over_2         = N0_over_2;
 dmtObj.Ex_bar            = Ex_bar;
 dmtObj.Ex_budget         = Ex_budget;
 dmtObj.Tsym              = Tsym;
+dmtObj.gap_db            = gap_db;
+dmtObj.max_load          = max_load;
 
 %% Constants
 POST_PRE_ICPD_FLAG = 0;
@@ -252,7 +255,11 @@ dmtObj.n0 = n0;
 dmtObj.equalizer         = equalizer;
 switch equalizer
     case EQ_TEQ
-        dmtObj.w = w;
+        dmtObj.w        = w;
+        dmtObj.teqTaps  = nTaps;
+        dmtObj.teqDelta = delta;
+        dmtObj.teqNf    = Nf;
+        dmtObj.teqType  = teqType;
     case EQ_FREQ_PREC
         dmtObj.Precoder = FreqPrecoder;
     case EQ_TIME_PREC
@@ -311,7 +318,9 @@ end
 
 %% Loading
 
-[bn, En, SNR_n, n_loaded] = dmtLoading(dmtObj, gn, gap_db, max_load);
+fprintf('\n------------------ Discrete Loading -------------------- \n\n');
+
+[bn, En, SNR_n, n_loaded] = dmtLoading(dmtObj, gn);
 
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
@@ -504,47 +513,13 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
         fprintf('\n## Re-training the ICPD PSD and the bit-loading...\n');
 
-        % For an MMSE_TEQ, jointly design the TEQ
-        if (equalizer == EQ_TEQ && teqType == TEQ_MMSE)
-            % Autocorrelation matrix with the appropriate dimensions
-            Rxx = toeplitz(rxx(Nfft:Nfft + floor(nTaps/L)*L + (Lh-1) - 1));
-            % Re-design the TEQ
-            [w, SNRteq] = ...
-                mmse_teq(p, L, delta, Nf, nu, Rxx, N0_over_2, debug_teq);
-            fprintf('New SNRmfb (TEQ):\t %g dB\n', 10*log10(SNRteq))
-            % Shortening SNR:
-            ssnr_w = ssnr( w, p, delta, nu );
-            fprintf('SSNR:\t %g dB\n', 10*log10(ssnr_w));
-            if(~isreal(w))
-                warning('MMSE-TEQ designed with complex taps');
-            end
-            % Update the effective channel:
-            p_eff = conv(p,w);
-            % Update the FEQ
-            FEQn = dmtFEQ(p_eff, dmtObj);
-
-            % Update equalizers in the DMT Object
-            dmtObj.w      = w;    % TEQ
-            dmtObj.FEQ_n  = FEQn; % FEQ
-        end
-
-        % Nfft x Nfft Autocorrelation Matrix
-        Rxx = toeplitz(rxx(Nfft:end));
-
-        % Update the gain-to-noise ratio:
-        gn = dmtGainToNoise(p_eff, dmtObj, Rxx);
-
-        % Re-compute the bit loading
-        [bn, En, SNR_n, n_loaded] = dmtLoading(dmtObj, gn, gap_db, ...
-            max_load);
+        [ dmtObj, bn, En, SNR_n, n_loaded ] = dmtTrainining(p_eff, ...
+            dmtObj, rxx );
 
         % Number of subchannels that are loaded
         N_loaded = length(n_loaded);
         % Dimensions in each loaded subchannel
         dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
-
-        % Bits per subchannel per dimension
-        bn_bar = bn ./ dim_per_subchannel;
 
         % Update the probability of error
         Pe_bar_n = dmtPe(bn, SNR_n, dim_per_subchannel);
@@ -553,25 +528,6 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         % Print the results of the new bit-load
         fprintf('Pe_bar (LC)  :\t %g\n', Pe_bar);
         fprintf('## Restarting transmission...\n\n');
-
-        % Update the vector of modulation orders
-        modOrder = 2.^bn;
-        % Update modem objects
-        [modulator, demodulator] = dmtGenerateModems(modOrder, ...
-            dim_per_subchannel);
-        % Re-generate modem look-up table
-        modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
-        % Re-generate the subchannel scaling factors
-        [scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
-            En, dim_per_subchannel);
-
-        % Update DMT Object
-        dmtObj.modulator    = modulator;
-        dmtObj.demodulator  = demodulator;
-        dmtObj.b_bar_n      = bn_bar;        % Bit load per dimension
-        dmtObj.modem_n      = modem_n;       % Constellation scaling
-        dmtObj.scale_n      = scale_n;       % Subchannel scaling factor
-        dmtObj.dmin_n       = dmin_n;        % Minimum distance
 
         % Finally, reset the SER computation:
         sym_err_n  = zeros(N_loaded, 1);
