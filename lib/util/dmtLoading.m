@@ -12,7 +12,6 @@ nDim               = dmt.nDim;
 N_subch            = dmt.N_subch;
 equalizer          = dmt.equalizer;
 Tsym               = dmt.Tsym;
-subCh_tone_index   = dmt.iTones;
 
 gap = 10^(gap_db/10); % Gap in linear scale
 
@@ -52,8 +51,8 @@ if (equalizer == EQ_TIME_PREC || equalizer == EQ_FREQ_PREC)
 
     % Full Hermitian En_bar vector for the Levin-Campello energy load
     En_bar_herm = zeros(Nfft, 1);
-    En_bar_herm(subCh_tone_index_herm(1:N_subch)) = En_bar;
-    En_bar_herm(subCh_tone_index_herm(N_subch+1:end)) = ...
+    En_bar_herm(dmt.iTonesTwoSided(1:N_subch)) = En_bar;
+    En_bar_herm(dmt.iTonesTwoSided(N_subch+1:end)) = ...
         fliplr(En_bar);
 
     % Average transmit energy per symbol after precoding
@@ -92,7 +91,7 @@ end
 %% Bit loading computations
 
 % Save a vector with the index of the subchannels that are loaded
-n_loaded = subCh_tone_index(bn ~= 0);
+n_loaded = dmt.iTones(bn ~= 0);
 
 % Total bits per dimension:
 b_bar_discrete = 1/nDim*(sum(bn));
