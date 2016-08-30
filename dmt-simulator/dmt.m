@@ -26,6 +26,7 @@ nSymbols     = Dmt.nSymbols;
 equalizer    = Dmt.equalizer;
 dcNyquist    = Dmt.dcNyquist;
 teqType      = Dmt.teqType;
+montecarlo   = Dmt.montecarlo;
 maxNumErrs   = Dmt.maxNumErrs;
 maxNumDmtSym = Dmt.maxNumDmtSym;
 
@@ -419,6 +420,10 @@ Pe_bar = mean(Pe_bar_n, 'omitnan');
 fprintf('Pe_bar (LC)  :\t %g\n', Pe_bar);
 
 %% Monte-carlo
+
+if (montecarlo == 0)
+    return;
+end
 
 fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 

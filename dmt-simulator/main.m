@@ -32,7 +32,8 @@ Dmt.dcNyquist  = 0;       % Flag to enable loading DC and Nyquist subchan
 % MMSE-TEQ Parameters
 Dmt.teqType    = 0;       % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
 % Monte-Carlo Parameters
-Dmt.maxNumErrs   = inf;
+Dmt.montecarlo = 1;       % 1) Enabled; 0) Disabled
+Dmt.maxNumErrs = inf;
 Dmt.maxNumDmtSym = 1e12;
 % Channel
 channelChoice = 1;
