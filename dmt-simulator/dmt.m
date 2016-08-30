@@ -391,7 +391,6 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 
 % Preallocate
 sym_err_n  = zeros(N_loaded, 1);
-rxx        = zeros(2*Nfft - 1, 1); % Autocorrelation
 numErrs = 0; numDmtSym = 0;
 
 % Sys Objects
@@ -431,7 +430,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     % Input Autocorrelation based on actual transmit data
     [rxx_current, ~] = xcorr(x(:), Nfft-1, 'unbiased');
-    if (iTransmission > 1)
+    if (exist('rxx', 'var'))
         rxx = (rxx_current + rxx)/2;
     else
         rxx = rxx_current;
