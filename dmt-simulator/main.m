@@ -34,7 +34,7 @@ Dmt.teqType    = 0;       % 0 - MMSE; 1 - SSNR; 2 - GeoSNR
 % Monte-Carlo Parameters
 Dmt.montecarlo = 1;       % 1) Enabled; 0) Disabled
 Dmt.maxNumErrs = inf;
-Dmt.maxNumDmtSym = 1e12;
+Dmt.maxIterations = 20;   % Number of iterations (nSymbols per iteration)
 % Channel
 channelChoice = 1;
 

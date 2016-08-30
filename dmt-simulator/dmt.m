@@ -28,7 +28,7 @@ dcNyquist    = Dmt.dcNyquist;
 teqType      = Dmt.teqType;
 montecarlo   = Dmt.montecarlo;
 maxNumErrs   = Dmt.maxNumErrs;
-maxNumDmtSym = Dmt.maxNumDmtSym;
+maxIterations = Dmt.maxIterations;
 
 %% Derived computations:
 
@@ -439,7 +439,7 @@ BitError = comm.ErrorRate;
 iTransmission = 0;
 iReTraining   = 0;
 
-while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
+while ((numErrs < maxNumErrs) && (iTransmission < maxIterations))
     iTransmission = iTransmission + 1;
 
     %% Random DMT Data divided per subchannel
