@@ -394,21 +394,7 @@ modem_n = dmtModemLookUpTable(modOrder, dim_per_subchannel);
 [scale_n, dmin_n] = dmtSubchanScaling(modulator, modem_n, ...
                     En, dim_per_subchannel);
 
-%% Monte-carlo
-
-fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
-
-% Preallocate
-sym_err_n  = zeros(N_loaded, 1);
-numErrs = 0; numDmtSym = 0;
-
-% Sys Objects
-BitError = comm.ErrorRate;
-
-%% DMT Struct
-% Create an object with all the parameters
-
-% Fixed Parameters
+%% Prepare DMT Struct for Monte-Carlo
 
 % Mod/Demod Objects
 dmtObj.modulator         = modulator;
@@ -420,6 +406,47 @@ dmtObj.modem_n           = modem_n;         % Constellation scaling
 dmtObj.scale_n           = scale_n;         % Subchannel scaling factor
 dmtObj.dmin_n            = dmin_n;          % Minimum distance
 dmtObj.FEQ_n             = FEQn;            % FEQ
+
+%% Traing Loading based on modulated sequence
+
+fprintf('\n------------------ Trained Loading -------------------- \n\n');
+
+% Random DMT Data divided per subchannel
+[tx_data] = dmtRndData(dmtObj);
+
+% DMT Modulation
+[u, x] = dmtTx(tx_data, dmtObj);
+
+% Transmit Autocorrelation
+
+% Input Autocorrelation based on actual transmit data
+[rxx, ~] = xcorr(x(:), Nfft-1, 'unbiased');
+
+[ dmtObj, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
+    dmtObj, rxx );
+
+% Number of subchannels that are loaded
+N_loaded = length(n_loaded);
+% Dimensions in each loaded subchannel
+dim_per_loaded_subchannel = dim_per_dft_tone(n_loaded);
+
+% Update the probability of error
+Pe_bar_n = dmtPe(bn, SNR_n, dim_per_subchannel);
+Pe_bar = mean(Pe_bar_n, 'omitnan');
+
+% Print the results of the new bit-load
+fprintf('Pe_bar (LC)  :\t %g\n', Pe_bar);
+
+%% Monte-carlo
+
+fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
+
+% Preallocate
+sym_err_n  = zeros(N_loaded, 1);
+numErrs = 0; numDmtSym = 0;
+
+% Sys Objects
+BitError = comm.ErrorRate;
 
 %% Iterative Transmissions
 
@@ -439,11 +466,9 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
     % Input Autocorrelation based on actual transmit data
     [rxx_current, ~] = xcorr(x(:), Nfft-1, 'unbiased');
-    if (exist('rxx', 'var'))
-        rxx = (rxx_current + rxx)/2;
-    else
-        rxx = rxx_current;
-    end
+
+    % Average the autocorrelation
+    rxx = (rxx_current + rxx)/2;
 
     %% Debug Tx Energy
 
