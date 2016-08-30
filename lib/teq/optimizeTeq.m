@@ -68,17 +68,12 @@ chLen = find(abs(p) > chLenThresh, 1, 'last') - ...
 
 switch (type)
     case {0,2} % MSE and GeoSNR
-        maxTaps  = 3*(chLen - nu);
+        maxTaps  = 4*(chLen - nu);
         minTaps  = 1*(chLen - nu);
         % Force at least a range of nu
         if (maxTaps < minTaps + nu)
             maxTaps = minTaps + nu;
         end
-        % Also avoid equalizers that are longer than the impulse response.
-        if (maxTaps > length(p))
-            maxTaps = length(p);
-        end
-
     case 1 % SSNR
         maxTaps  = nu;
         minTaps  = l;
