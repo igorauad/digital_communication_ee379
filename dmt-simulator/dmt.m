@@ -403,8 +403,8 @@ fprintf('\n------------------ Trained Loading -------------------- \n\n');
 % Input Autocorrelation based on actual transmit data
 [rxx, ~] = xcorr(x(:), Nfft-1, 'unbiased');
 
-[ Dmt, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
-    Dmt, rxx );
+% FEQ and bit load training:
+[ Dmt, bn, SNR_n, n_loaded ] = dmtTrainining(p, Dmt, rxx );
 
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
@@ -519,8 +519,8 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
 
         fprintf('\n## Re-training the ICPD PSD and the bit-loading...\n');
 
-        [ Dmt, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, ...
-            Dmt, rxx );
+        % FEQ and bit load training:
+        [ Dmt, bn, SNR_n, n_loaded ] = dmtTrainining(p, Dmt, rxx );
 
         % Number of subchannels that are loaded
         N_loaded = length(n_loaded);

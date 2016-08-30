@@ -1,4 +1,4 @@
-function [ Dmt, bn, En, SNR_n, n_loaded, p_eff ] = dmtTrainining(p, Dmt, rxx )
+function [ Dmt, bn, SNR_n, n_loaded ] = dmtTrainining(p, Dmt, rxx )
 % Training of DMT FEQ and Bit Loading
 %
 % Inputs
