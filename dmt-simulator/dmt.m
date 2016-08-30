@@ -393,19 +393,33 @@ Dmt.FEQ_n             = FEQn;            % FEQ
 
 fprintf('\n------------------ Trained Loading -------------------- \n\n');
 
-% Random DMT Data divided per subchannel
-[tx_data] = dmtRndData(Dmt);
+% Perform 5 training iterations for the TEQ, in order to antecipate the
+% convergence between the joint loading and TEQ design.
+if (equalizer == EQ_TEQ)
+    nTraintIterations = 5;
+else
+    nTraintIterations = 1;
+end
 
-% DMT Modulation
-[u, x] = dmtTx(tx_data, Dmt);
+iTrainIteration = 0;
+while (iTrainIteration < nTraintIterations)
+    % Random DMT Data divided per subchannel
+    [tx_data] = dmtRndData(Dmt);
 
-% Transmit Autocorrelation
+    % DMT Modulation
+    [u, x] = dmtTx(tx_data, Dmt);
 
-% Input Autocorrelation based on actual transmit data
-[rxx, ~] = xcorr(x(:), Nfft-1, 'unbiased');
+    % Transmit Autocorrelation
 
-% FEQ and bit load training:
-[ Dmt, bn, SNR_n, Rb, n_loaded ] = dmtTrainining(p, Dmt, rxx );
+    % Input Autocorrelation based on actual transmit data
+    [rxx, ~] = xcorr(x(:), Nfft-1, 'unbiased');
+
+    % FEQ and bit load training:
+    [ Dmt, bn, SNR_n, Rb, n_loaded ] = dmtTrainining(p, Dmt, rxx );
+
+    % Update iteration count
+    iTrainIteration = iTrainIteration + 1;
+end
 
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
