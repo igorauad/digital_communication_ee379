@@ -1,4 +1,4 @@
-function [Pe_bar] = dmt(Dmt, channelChoice)
+function [Pe_bar, Rb] = dmt(Dmt, channelChoice)
 % DMT Simulator
 
 %% Debug levels
@@ -301,7 +301,7 @@ end
 
 fprintf('\n------------------ Discrete Loading -------------------- \n\n');
 
-[bn, En, SNR_n, n_loaded] = dmtLoading(Dmt, gn);
+[bn, En, SNR_n, Rb, n_loaded] = dmtLoading(Dmt, gn);
 
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
@@ -404,7 +404,7 @@ fprintf('\n------------------ Trained Loading -------------------- \n\n');
 [rxx, ~] = xcorr(x(:), Nfft-1, 'unbiased');
 
 % FEQ and bit load training:
-[ Dmt, bn, SNR_n, n_loaded ] = dmtTrainining(p, Dmt, rxx );
+[ Dmt, bn, SNR_n, Rb, n_loaded ] = dmtTrainining(p, Dmt, rxx );
 
 % Number of subchannels that are loaded
 N_loaded = length(n_loaded);
@@ -520,7 +520,7 @@ while ((numErrs < maxNumErrs) && (numDmtSym < maxNumDmtSym))
         fprintf('\n## Re-training the ICPD PSD and the bit-loading...\n');
 
         % FEQ and bit load training:
-        [ Dmt, bn, SNR_n, n_loaded ] = dmtTrainining(p, Dmt, rxx );
+        [ Dmt, bn, SNR_n, Rb, n_loaded ] = dmtTrainining(p, Dmt, rxx );
 
         % Number of subchannels that are loaded
         N_loaded = length(n_loaded);

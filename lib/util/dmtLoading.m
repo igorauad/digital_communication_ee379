@@ -1,4 +1,4 @@
-function [bn, En, SNR_n, n_loaded] = dmtLoading(dmt, gn)
+function [bn, En, SNR_n, Rb, n_loaded] = dmtLoading(dmt, gn)
 % Computes the bit-loading and adapt it if necessary
 
 % Equalizer Types

@@ -38,4 +38,4 @@ Dmt.maxNumDmtSym = 1e12;
 channelChoice = 1;
 
 %% Run
-[Pe_bar] = dmt(Dmt, channelChoice);
+[Pe_bar, Rb] = dmt(Dmt, channelChoice);

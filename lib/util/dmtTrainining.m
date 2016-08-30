@@ -1,4 +1,4 @@
-function [ Dmt, bn, SNR_n, n_loaded ] = dmtTrainining(p, Dmt, rxx )
+function [ Dmt, bn, SNR_n, Rb, n_loaded ] = dmtTrainining(p, Dmt, rxx )
 % Training of DMT FEQ and Bit Loading
 %
 % Inputs
@@ -77,7 +77,7 @@ Rxx = toeplitz(rxx(Nfft:end));
 gn = dmtGainToNoise(p_eff, Dmt, Rxx);
 
 %% Re-compute the bit loading
-[bn, En, SNR_n, n_loaded] = dmtLoading(Dmt, gn);
+[bn, En, SNR_n, Rb, n_loaded] = dmtLoading(Dmt, gn);
 
 % Bits per subchannel per dimension
 bn_bar = bn ./ Dmt.dim_per_subchannel;
