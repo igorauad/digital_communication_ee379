@@ -69,6 +69,9 @@ Ex_budget = Ex*(Nfft/(Nfft + nu)); % Energy budget passed to the WaterFill
 Ex_bar    = Ex / nDim;      % Energy per real dimension
 
 % Copy the Required Parameters to the DMT structure
+Dmt.delta_f           = delta_f;
+Dmt.Fs                = Fs;
+Dmt.N                 = N;
 Dmt.Nfft              = Nfft;
 Dmt.nDim              = nDim;
 Dmt.Ex_bar            = Ex_bar;
