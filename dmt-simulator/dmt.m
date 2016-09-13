@@ -87,8 +87,6 @@ TEQ_SSNR    = 1;
 % Equalizer Types
 EQ_NONE      = 0;
 EQ_TEQ       = 1;
-EQ_FREQ_PREC = 2;
-EQ_TIME_PREC = 3;
 
 % Normalized FFT Matrix
 Q = (1/sqrt(Nfft))*fft(eye(Nfft));
@@ -224,13 +222,6 @@ fprintf('\n-------------------- MMSE-TEQ Design ------------------- \n\n');
 
         % Cursor based on the TEQ delay.
         n0 = delta;
-
-    case EQ_FREQ_PREC
-fprintf('\n------------------- Freq DMT Precoder ------------------ \n');
-        FreqPrecoder = dmtFreqPrecoder(p, Nfft, nu, tau, n0, windowing);
-    case EQ_TIME_PREC
-fprintf('\n------------------- Time DMT Precoder ------------------ \n\n');
-        TimePrecoder = dmtTimePrecoder(p, n0, nu, tau, Nfft, windowing);
 end
 
 % Copy cursor to DMT Object
@@ -245,10 +236,6 @@ switch equalizer
         Dmt.teqDelta = delta;
         Dmt.teqNf    = Nf;
         Dmt.teqType  = teqType;
-    case EQ_FREQ_PREC
-        Dmt.Precoder = FreqPrecoder;
-    case EQ_TIME_PREC
-        Dmt.Precoder = TimePrecoder;
 end
 
 %% Effective pulse response
@@ -394,23 +381,23 @@ Dmt.FEQ_n             = FEQn;            % FEQ
 
 %% Traing Loading based on modulated sequence
 
-fprintf('\n------------------ Trained Loading -------------------- \n\n');
-
-% Perform 5 training iterations for the TEQ, in order to antecipate the
-% convergence between the joint loading and TEQ design.
-if (equalizer == EQ_TEQ)
-    nTraintIterations = 5;
-else
-    nTraintIterations = 1;
+switch (equalizer)
+    case EQ_NONE
+        nTraintIterations = 1;
+    case EQ_TEQ
+        % Perform 5 training iterations for the TEQ, in order to antecipate
+        % the convergence between the joint loading and TEQ design.
+        nTraintIterations = 5;
 end
 
 iTrainIteration = 0;
 while (iTrainIteration < nTraintIterations)
+fprintf('\n------------------ Trained Loading -------------------- \n\n');
     % Random DMT Data divided per subchannel
     [tx_data] = dmtRndData(Dmt);
 
     % DMT Modulation
-    [u, x] = dmtTx(tx_data, Dmt);
+    [~, x] = dmtTx(tx_data, Dmt);
 
     % Transmit Autocorrelation
 

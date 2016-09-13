@@ -9,8 +9,6 @@ function [ gn ] = dmtGainToNoise(p, dmt, Rxx)
 % Equalizer Types
 EQ_NONE      = 0;
 EQ_TEQ       = 1;
-EQ_FREQ_PREC = 2;
-EQ_TIME_PREC = 3;
 
 % Parameters
 Nfft      = dmt.Nfft;
@@ -50,16 +48,6 @@ switch (eqType)
 
         % Total ICPD PSD
         S_icpd = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft);
-    case {EQ_FREQ_PREC, EQ_TIME_PREC}
-        % In this case, assume post-cursor ICPD is fully cancelled and
-        % consider only the pre-cursor ICPD.
-
-        % Compute the ISI matrices
-        [~, ~, ~, HpreIsi, ~] = ...
-            dmtIsiIciMatrices(p, n0, nu, tau, Nfft, windowing);
-
-        % PSD given by pre-cursor ICPD
-        S_icpd = icpdPsdMtx(zeros(Nfft), HpreIsi, Rxx, Nfft);
 end
 
 %% Gain to noise

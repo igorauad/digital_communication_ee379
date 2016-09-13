@@ -10,10 +10,6 @@ function [u, x] = dmtTx(tx_data, dmt)
 %  u       -> Extended/windowed modulated sequence
 %  x       -> IDFT output (non-extended modulated sequence)
 
-% Equalizer Types
-EQ_FREQ_PREC = 2;
-EQ_TIME_PREC = 3;
-
 Nfft     = dmt.Nfft;
 nSymbols = dmt.nSymbols;
 nu       = dmt.nu;
@@ -34,17 +30,8 @@ end
 % Hermitian symmetry
 X(Nfft/2 + 2:Nfft, :) = flipud(conj( X(2:Nfft/2, :)));
 
-%% Per-tone Precoder
-if (dmt.equalizer == EQ_FREQ_PREC)
-    X = precodeFreqDomain(X, dmt.Precoder, dmt.b_bar_n, ...
-        dmt.dmin_n, dmt.iTones);
-end
-
+% IFFT
 x = sqrt(Nfft) * ifft(X, Nfft);
-
-if (dmt.equalizer == EQ_TIME_PREC)
-    x = precodeTimeDomain( x, dmt.Precoder );
-end
 
 %% Cyclic extension -> Windowing + overlap -> Parallel to serial
 if (dmt.windowing)
