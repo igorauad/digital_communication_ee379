@@ -1,4 +1,6 @@
 %% Example 4.3.1 - Water filling
+clearvars, clc
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 8;    % FFT size and the number of dimensions
@@ -36,7 +38,7 @@ gn = abs(H).^2 / sigma_n;
 % of bits is obtained as well as the corresponding energy allocated to each
 % dimension of the subchannels.
 
-[bn_bar, En_bar] = waterFilling(gn, Ex_bar, N, gap)
+[bn_bar, En_bar] = waterFilling(gn, Ex, N, gap)
 
 % Sanity check. Is the sum of the energy in each dimension less than the
 % total?

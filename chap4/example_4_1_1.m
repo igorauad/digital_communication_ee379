@@ -1,7 +1,6 @@
 %% Example 4.1.1 - Introduction to multi-channel modulation
-
-clear all
-clc
+clearvars, clc
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 8;    % FFT size and the number of real dimensions

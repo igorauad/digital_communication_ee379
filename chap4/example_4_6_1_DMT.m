@@ -6,7 +6,7 @@
 % to design transmit/receive basis functions.
 
 clearvars, clc
-addpath('../lib/')
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 8;       % FFT size and the number of subchannels
@@ -64,7 +64,7 @@ SNRmfb = (Ex_bar * norm(h).^2)/sigma_n
 % SNR for unitary energy transmit symbol:
 gn = (abs(H).^2) / sigma_n;
 
-[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar, N, gap)
+[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar*N, N, gap)
 dim_per_subchannel = [1 2*ones(1, N/2-1) 1 2*ones(1, N/2-1)]
 
 % Number of bits per dimension
@@ -113,7 +113,7 @@ c = sum(cn) / nDim
 %% Discrete-loading
 % Levin Campello Rate Adaptive
 
-[En, bn] = DMTLCra(gn(1:N/2 + 1), Ex_bar, N, gap)
+[En, bn] = DMTLCra(gn(1:N/2 + 1), Ex_bar*N, N, gap)
 
 % calculate b_bar (bits per dimension)
 b_bar=1/nDim*(sum(bn));

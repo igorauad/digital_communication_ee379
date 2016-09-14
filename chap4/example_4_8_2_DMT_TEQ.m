@@ -1,6 +1,6 @@
 %% Example 4.8.2 - Full-band TEQ
 clearvars, clc
-addpath('../lib/')
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 128;     % FFT size and the number of used real dimensions
@@ -97,7 +97,7 @@ fprintf('Non-equalized DMT:\n\n');
 % SNR for unitary energy transmit symbol:
 gn = (abs(H).^2) / sigma_n_sq;
 
-[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar, N, gap);
+[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar*N, N, gap);
 % Recall the budget "Ex" must be reduced by a factor N/(N + nu), to account
 % for the fact that repetition in the cyclic prefix will increase the
 % energy (in VC there is no repetition, but simply zer-padding). So here
@@ -156,7 +156,7 @@ H_teq = fft(b, N);
 % New Unitary-energy SNR:
 gn_teq = (abs(H_teq).^2) / unbiased_error_energy_per_dim;
 % Water-filling:
-[bn_bar_teq, ~, usedTones] = waterFilling(gn_teq, Ex_bar, N, gap);
+[bn_bar_teq, ~, usedTones] = waterFilling(gn_teq, Ex_bar*N, N, gap);
 
 % Number of bits per dimension
 b_bar_teq = (1/nDim)*(sum(bn_bar_teq));
@@ -198,7 +198,7 @@ H = fft(p, N);
 gn = (abs(H).^2) / sigma_n_sq;
 
 % Water-filling
-[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar, N, gap);
+[bn_bar, ~, usedTones] = waterFilling(gn, Ex_bar*N, N, gap);
 
 % Bits per dimension
 b_bar = (1/nDim)*(sum(bn_bar));

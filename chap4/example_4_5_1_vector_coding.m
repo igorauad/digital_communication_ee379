@@ -1,6 +1,6 @@
 %% Example 4.5.1 - Vector Coding
-
 clearvars, clc
+addpath(genpath('../lib'))
 
 % Parameters
 N       = 8;       % FFT size and the number of subchannels
@@ -46,7 +46,7 @@ P = convmtx(h, N);
 
 gn = (diag(S).^2) / sigma_n;
 
-[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex_bar, N, gap);
+[bn_bar, En_bar, usedTones] = waterFilling(gn, Ex, N, gap);
 % Note the energy per dimension passed to the water-filler is the one
 % computed by dividing the total budget by the number of used dimensions
 % (N), which excludes the "wasted" dimensions. Likewise, the number of

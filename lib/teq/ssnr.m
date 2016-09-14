@@ -1,5 +1,5 @@
-function [ ssnr ] = teqSSNR( w, p, delta, nu )
-% [ ssnr ] = teqSSNR( w, p, delta, nu )
+function [ ssnr ] = ssnr( w, p, delta, nu )
+% [ ssnr ] = ssnr( w, p, delta, nu )
 % -------------------------------------------------------------------------
 %   Compute the "Shortening SNR" (SSNR), which measures the ratio between
 %   the energy within the window of samples where MMSE should concentrate

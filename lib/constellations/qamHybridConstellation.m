@@ -34,7 +34,7 @@ function qamConst_o = qamHybridConstellation(M)
 %
 %       The probability of error is also different. Consider three
 %   possibilities in terms of nearest neighbors: the corner points, which
-%   have only a single neares neighbor, the edge points, which have 2
+%   have only a single nearest neighbor, the edge points, which have 2
 %   nearest neighbors and the inner points, which have 4 nearest neighbors.
 %   For every Hybrid QAM, there are:
 %       - 2 corner points
