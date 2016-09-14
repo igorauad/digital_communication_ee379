@@ -6,12 +6,14 @@ M         = 16; % Constellation order
 Nfft      = 128;
 Nfft_psd  = 512;
 nu        = 16;
-tau       = 8;
 n0        = 12;
 nSymbols  = 1e3;
-windowing = 1;
 flat      = 0;
-% CIR:
+
+%% Constants
+windowing = 0;
+
+%% CIR:
 h = [randn(1,10) 0.01 0.1 1 exp(-0.15*(1:50))].';
 
 %% Derived parameters
@@ -31,9 +33,6 @@ else
     % Force "tau" (CS length) to 0 when windowing is not used
     tau = 0;
 end
-
-% Window applied to CP and CS:
-w = designDmtWindow(Nfft, nu, tau);
 
 if (delta <= 0)
     warning('Parameters yield absent post-cursor ICPD already');
@@ -182,7 +181,7 @@ Ex_bar
 %% Computed PSDs
 
 [ S_icpd, S_post, S_pre ] = ...
-    icpdPsd(h, Nfft, Nfft_psd, nu, tau, n0, Ex_bar, w);
+    icpdPsd(h, Nfft, Nfft_psd, nu, tau, n0, Ex_bar);
 
 %% Compare ICPD PSD computed using matrix formulation
 % IMPORTANT: the third argument of "icpdPsdMtx" can be a scalar (Ex_bar) or
@@ -268,19 +267,13 @@ title('Total Pre-cursor ICPD')
 
 %% Plot Total ICPD PSD
 
-% Old computation
-POST_PRE_ICPD_FLAG = 1;
-icpd_psd = interferencePsd(h(:), Nfft_psd, nu, tau, n0, ...
-    Ex, POST_PRE_ICPD_FLAG, windowing);
 
 figure
-plot(W, 10*log10(icpd_psd), 'ks')
-hold on
 plot(W, 10*log10(S_icpd), 'g', 'linewidth', 1.1)
 hold on
 plot(W, 10*log10(S_icpd2), 'y', 'linewidth', 1.1)
 hold on
 plot(W, 10*log10(Picpd_icpd*2*pi), 'b--')
-legend('Old Computation', 'New Computation', ...
-    'New Computation (w/ Rxx)', 'Measured')
+legend('Computed assuming flat-load', ...
+    'Computated w/ Rxx', 'Measured')
 title('Total ICPD')

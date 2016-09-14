@@ -76,7 +76,11 @@ end
 %% Windowing Sequence
 
 % Window
-dmtWindow = designDmtWindow(N, nu, tau);
+if (windowing)
+    dmtWindow = designDmtWindow(N, nu, tau);
+else
+    dmtWindow = ones(N+nu+tau, 1);
+end
 
 %% Post-cursor ICPD
 
