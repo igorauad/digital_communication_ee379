@@ -6,8 +6,6 @@ Dmt = [];
 
 %% Debug levels
 Dmt.debug.enable        = 1;  % Enable debug information
-Dmt.debug.constellation = 0;  % Debug a certain subchannel constellation
-Dmt.debug.tone          = 16; % Tone whose constellation is debugged
 Dmt.debug.Pe            = 1;  % Debug error probabilities
 Dmt.debug.loading       = 0;  % Debug bit loading
 Dmt.debug.tx_energy     = 0;  % Debug transmit energy

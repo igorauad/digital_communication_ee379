@@ -3,8 +3,6 @@ function [Pe_bar, Rb] = dmt(Dmt, channelChoice)
 
 %% Debug levels
 debug               = Dmt.debug.enable;
-debug_constellation = Dmt.debug.constellation;
-debug_tone          = Dmt.debug.tone;
 debug_Pe            = Dmt.debug.Pe;
 debug_loading       = Dmt.debug.loading;
 debug_tx_energy     = Dmt.debug.tx_energy;
@@ -530,16 +528,6 @@ while ((numErrs < maxNumErrs) && (iTransmission < maxIterations))
         sym_err_n  = zeros(N_loaded, 1);
         numErrs = 0; numDmtSym = 0; iTransmission = 0;
     end
-
-    %% Constellation plot for debugging
-    if (debug && debug_constellation && modem_n(debug_tone) > 0 ...
-        && iTransmission == 1)
-        k = debug_tone;
-
-        viewConstellation(Z, scale_n(k) * ...
-                modulator{modem_n(k)}.modulate(0:modOrder(k) - 1), k);
-    end
-
 end
 
 %% Results
