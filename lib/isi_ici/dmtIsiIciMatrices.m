@@ -118,14 +118,6 @@ end
 
 % Check Pre-Cursor ICPD Energy
 
-% Check the energy prior to the cursor
-preCursorEnergy = sum(abs(p(1:(n0-1))).^2);
-if (preCursorEnergy >= 0.1 * norm(p)^2)
-    warning('Pre-cursor ICPD is not irrelevant\n');
-    assert(delta > 0, ...
-        'Post-cursor ICPD does not occur');
-end
-
 % Preallocate
 HpreIci = zeros(N, N);
 HpreIsi = zeros(N, N);
