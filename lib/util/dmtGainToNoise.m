@@ -14,10 +14,8 @@ EQ_TEQ       = 1;
 Nfft      = dmt.Nfft;
 nu        = dmt.nu;
 n0        = dmt.n0;
-tau       = dmt.tau;
 Ex_bar    = dmt.Ex_bar;
 N0_over_2 = dmt.N0_over_2;
-windowing = dmt.windowing;
 eqType    = dmt.equalizer;
 
 if (nargin < 3)
@@ -44,7 +42,8 @@ switch (eqType)
     case {EQ_TEQ, EQ_NONE}
         % Compute the ISI matrices
         [Hisi, ~, ~, HpreIsi, ~] = ...
-            dmtIsiIciMatrices(p, n0, nu, tau, Nfft, windowing);
+            dmtIsiIciMatrices(p, n0, nu, 0, Nfft, 0);
+        % 0's are set because windowing is not used
 
         % Total ICPD PSD
         S_icpd = icpdPsdMtx(Hisi, HpreIsi, Rxx, Nfft);

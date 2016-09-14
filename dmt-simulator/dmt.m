@@ -18,8 +18,6 @@ Px           = Dmt.Px;
 N0_over_2    = Dmt.N0_over_2;
 N            = Dmt.N;
 nu           = Dmt.nu;
-tau          = Dmt.tau;
-windowing    = Dmt.windowing;
 gap_db       = Dmt.gap_db;
 delta_f      = Dmt.delta_f;
 nSymbols     = Dmt.nSymbols;
@@ -155,22 +153,6 @@ Lh = length(p);
 % Matched-filter Bound
 SNRmfb = (Ex_bar * norm(p).^2) / N0_over_2;
 fprintf('SNRmfb:    \t %g dB\n\n', 10*log10(SNRmfb))
-
-%% Windowing
-
-if (windowing)
-    dmtWindow = designDmtWindow(Nfft, nu, tau);
-else
-    % When windowing is not used, the suffix must be 0
-    tau = 0;
-end
-
-% Windowing
-Dmt.windowing = windowing;
-Dmt.tau       = tau;
-if (windowing)
-    Dmt.window = dmtWindow;
-end
 
 %% Cursor
 % Except for when the TEQ is used, the cursor corresponds to the index of
