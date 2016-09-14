@@ -1,4 +1,4 @@
-function [Pe_bar, Rb] = dmt(Dmt, channelChoice)
+function [Pe_bar, Rb] = dmt(Dmt)
 % DMT Simulator
 
 %% Debug levels
@@ -106,40 +106,11 @@ Dmt.N_subch            = N_subch;
 
 %% Pulse Response
 
-switch (channelChoice)
-    case 0
-        p = [-.729 .81 -.9 2 .9 .81 .729];
-        % Note: According to the model developed in Chap4 of EE379, p(t),
-        % the pulse response, corresponds to the combination between the
-        % post-DAC filter, the channel impulse response and the pre-ADC
-        % filtering.
-    case 1
-        % D2-H2
-        N_old = N;
-        load('/Users/igorfreire/Documents/Lasse/gfast_simulator/Channel_Model/data/all_models_106mhz.mat');
-        N = N_old;
-        iModel = 2;
-        H_herm = [H(:,iModel,iModel); conj(flipud(H(2:end-1,iModel,iModel)))];
-        if (any(imag(ifft(H_herm, N)) > 1e-8))
-            warning('H is not Hermitian symmetric');
-        end
-        clear H
-        h = real(ifft(H_herm));
-
-        p = truncateCir(h).';
-    case 2
-        % D2-H1
-        load('/Users/igorfreire/Documents/Lasse/gfast_simulator/Cables/D2-H1.mat');
-        h = real(ifft(H));
-
-        if (any(imag(ifft(H, N)) > 0))
-            warning('H is not Hermitian symmetric');
-        end
-
-        p = truncateCir(h).';
-    case 3
-        p = [1e-5 1e-5 .91 -.3 .2 .09 .081 .0729];
-end
+p = [-.729 .81 -.9 2 .9 .81 .729];
+% Note: According to the model developed in Chap4 of EE379, p(t),
+% the pulse response, corresponds to the combination between the
+% post-DAC filter, the channel impulse response and the pre-ADC
+% filtering.
 
 if (length(p) > Nfft)
     warning('Pulse response longer than Nfft');
@@ -372,7 +343,7 @@ end
 
 iTrainIteration = 0;
 while (iTrainIteration < nTraintIterations)
-fprintf('\n------------------ Trained Loading -------------------- \n\n');
+fprintf('\n------------------ Joint Loading -------------------- \n\n');
     % Random DMT Data divided per subchannel
     [tx_data] = dmtRndData(Dmt);
 
@@ -414,9 +385,6 @@ fprintf('\n---------------------- Monte Carlo --------------------- \n\n');
 % Preallocate
 sym_err_n  = zeros(N_loaded, 1);
 numErrs = 0; numDmtSym = 0;
-
-% Sys Objects
-BitError = comm.ErrorRate;
 
 %% Iterative Transmissions
 
